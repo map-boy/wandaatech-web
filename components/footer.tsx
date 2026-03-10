@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 export function Footer() {
   const currentYear = new Date().getFullYear()
 
@@ -26,19 +28,19 @@ export function Footer() {
             <h3 className="font-semibold">Product</h3>
             <ul className="space-y-2 text-sm text-primary-foreground/70">
               <li>
-                <a href="#project" className="hover:text-primary-foreground transition-colors">
+                <Link href="/#project" className="hover:text-primary-foreground transition-colors">
                   Easy GO
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="hover:text-primary-foreground transition-colors">
+                <Link href="/#features" className="hover:text-primary-foreground transition-colors">
                   Features
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="hover:text-primary-foreground transition-colors">
+                <Link href="/#pricing" className="hover:text-primary-foreground transition-colors">
                   Pricing
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
@@ -48,19 +50,19 @@ export function Footer() {
             <h3 className="font-semibold">Company</h3>
             <ul className="space-y-2 text-sm text-primary-foreground/70">
               <li>
-                <a href="#about" className="hover:text-primary-foreground transition-colors">
+                <Link href="/#about" className="hover:text-primary-foreground transition-colors">
                   About
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#team" className="hover:text-primary-foreground transition-colors">
+                <Link href="/#team" className="hover:text-primary-foreground transition-colors">
                   Team
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="hover:text-primary-foreground transition-colors">
+                <Link href="/#blog" className="hover:text-primary-foreground transition-colors">
                   Blog
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
@@ -97,12 +99,13 @@ export function Footer() {
             © {currentYear} WANDAA TECH. All rights reserved.
           </p>
           <div className="flex gap-6">
-            <a href="#" className="hover:text-primary-foreground transition-colors">
+            {/* UPDATED: Real links to your new legal pages */}
+            <Link href="/privacy" className="hover:text-primary-foreground transition-colors">
               Privacy Policy
-            </a>
-            <a href="#" className="hover:text-primary-foreground transition-colors">
+            </Link>
+            <Link href="/terms" className="hover:text-primary-foreground transition-colors">
               Terms of Service
-            </a>
+            </Link>
           </div>
         </div>
       </div>
