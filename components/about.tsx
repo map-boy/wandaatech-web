@@ -1,5 +1,7 @@
 'use client'
 
+import Image from 'next/image'
+
 export function About() {
   return (
     <section id="about" className="py-20 sm:py-32 bg-background border-b border-border">
@@ -58,17 +60,17 @@ export function About() {
               </div>
             </div>
 
-            {/* Right - Stats or Image Placeholder */}
-            <div className="bg-secondary rounded-2xl aspect-square flex items-center justify-center border border-border">
-              <div className="text-center space-y-4">
-                <div className="w-20 h-20 bg-primary/10 rounded-xl mx-auto flex items-center justify-center">
-                  <svg className="w-10 h-10 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-                <h4 className="font-semibold text-foreground">Company Image</h4>
-                <p className="text-sm text-muted-foreground">Place team or office photo here</p>
-              </div>
+            {/* Right - Company Image */}
+            <div className="relative rounded-2xl aspect-square overflow-hidden border border-border shadow-xl">
+              <Image
+                src="/company-logo.jpg"
+                alt="WANDAA TECH"
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 50vw"
+              />
+              {/* Subtle overlay to match the theme */}
+              <div className="absolute inset-0 bg-primary/5 hover:bg-transparent transition-colors duration-300" />
             </div>
           </div>
         </div>
