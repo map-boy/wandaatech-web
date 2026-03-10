@@ -1,0 +1,89 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* 1. DEFINE THE THEME FIRST */
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --radius-lg: var(--radius);
+}
+
+:root {
+  --background: 210 40% 98%;
+  --foreground: 215 25% 15%;
+  --primary: 160 84% 39%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 199 89% 48%;
+  --secondary-foreground: 215 25% 15%;
+  --muted: 210 20% 90%;
+  --muted-foreground: 215 15% 45%;
+  --card: 210 40% 99%;
+  --card-foreground: 215 25% 15%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 160 84% 39%;
+  --radius: 1rem;
+}
+
+.dark {
+  --background: 222 47% 7%;
+  --foreground: 213 27% 84%;
+  --primary: 160 84% 39%;
+  --secondary: 199 89% 48%;
+  --muted: 217 32% 15%;
+  --muted-foreground: 215 20% 65%;
+  --border: 217 32% 17%;
+  --card: 222 47% 10%;
+}
+
+/* 2. BASE STYLES */
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    /* Mesh Background */
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(160, 84%, 39%, 0.08) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, hsla(199, 89%, 48%, 0.08) 0px, transparent 50%);
+  }
+}
+
+/* 3. CUSTOM COMPONENTS (Avoid using @apply here to prevent build errors) */
+@layer components {
+  .glass {
+    background-color: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    box-shadow: 0 8px 32px 0 rgba(15, 118, 110, 0.1);
+    transition: all 0.3s ease;
+  }
+
+  .glass-hover:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-color: rgba(14, 165, 233, 0.3);
+    box-shadow: 0 8px 32px 0 rgba(14, 165, 233, 0.2);
+  }
+
+  .text-gradient {
+    background: linear-gradient(to right, #10b981, #0ea5e9);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: bold;
+  }
+}
