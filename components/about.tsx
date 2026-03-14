@@ -26,7 +26,7 @@ export function About() {
                   Founded by Data Science Students
                 </h3>
                 <p className="text-muted-foreground leading-relaxed">
-                  WANDAA TECH was created by Year 1 Data Science students from Université Libre de Kigali (ULK). What started as a vision to solve real-world problems has evolved into a full-fledged technology startup.
+                  WANDAA TECH was created by  Data Science students from Université Libre de Kigali (ULK). What started as a vision to solve real-world problems has evolved into a full-fledged technology startup.
                 </p>
               </div>
 

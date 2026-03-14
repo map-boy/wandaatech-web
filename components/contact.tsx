@@ -56,8 +56,8 @@ export function Contact() {
                   </svg>
                 </div>
                 <h3 className="font-semibold text-foreground">Email</h3>
-                <a href="mailto:hello@wandaatech.com" className="text-muted-foreground hover:text-foreground transition-colors">
-                  hello@wandaatech.com
+                <a href="Contact us:wandaatech@gmail.com" className="text-muted-foreground hover:text-foreground transition-colors">
+                  wandaatech@gmail.com
                 </a>
               </div>
 

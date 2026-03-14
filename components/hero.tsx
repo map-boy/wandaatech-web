@@ -55,7 +55,7 @@ export function Hero() {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
           >
-            Student-led innovation at ULK
+            Student-led innovation in Data Science
           </motion.p>
 
           <motion.div

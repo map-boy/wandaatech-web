@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import Image from 'next/image'
+import { MessageCircle, Mail } from 'lucide-react'
 
 const teamMembers = [
   {
@@ -11,8 +12,8 @@ const teamMembers = [
     image: '/010.jpg',
     bio: 'Visionary leader and founder, driving the company vision forward with a focus on data-driven innovation.',
     social: {
-      linkedin: '#',
-      email: 'mailto:mugishaalainpaisible@gmail.com',
+      whatsapp: 'https://wa.me/250780867473?text=Hello%20Alain,%20I%20am%20contacting%20you%20from%20WANDAA%20TECH.',
+      email: 'mailto:mugishaalainpaisible@gmail.com?subject=Inquiry%20regarding%20WANDAA%20TECH&body=Hello%20Alain%2C%0A%0AI%20am%20reaching%20out%20to%20discuss...',
     },
   },
   {
@@ -22,8 +23,8 @@ const teamMembers = [
     image: '/004.jpg',
     bio: 'Operations expert ensuring smooth execution of all company initiatives and platform logistics.',
     social: {
-      linkedin: '#',
-      email: 'mailto:coo@wandaatech.com',
+      whatsapp: 'https://wa.me/250789136987?text=Hello%20Felix,%20I%20am%20contacting%20you%20from%20WANDAA%20TECH.',
+      email: 'mailto:mucunguzifelix85@gmail.com?subject=Inquiry%20regarding%20WANDAA%20TECH%20Operations&body=Hello%20Felix%2C%0A%0AI%20am%20reaching%20out%20to%20discuss...',
     },
   },
   {
@@ -33,11 +34,10 @@ const teamMembers = [
     image: '/IMG_0514.JPG',
     bio: 'Tech innovator building scalable solutions for African markets and leading our development team.',
     social: {
-      linkedin: '#',
-      email: 'mailto:cto@wandaatech.com',
+      whatsapp: 'https://wa.me/250798582533?text=Hello%20Valentin,%20I%20am%20contacting%20you%20from%20WANDAA%20TECH.',
+      email: 'mailto:ishimwevarente@gmail.com?subject=Technical%20Inquiry%20-%20WANDAA%20TECH&body=Hello%20Valentin%2C%0A%0AI%20am%20reaching%20out%20to%20discuss%20the%20technical...',
     },
   },
-  
 ]
 
 function TeamCard({ member, index }: { member: typeof teamMembers[0], index: number }) {
@@ -80,24 +80,23 @@ function TeamCard({ member, index }: { member: typeof teamMembers[0], index: num
         {/* Social Links */}
         <div className="flex gap-4 pt-4 border-t border-white/5">
           <motion.a
-            href={member.social.linkedin}
-            className="p-2 rounded-lg glass-hover text-muted-foreground hover:text-emerald-500"
+            href={member.social.whatsapp}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all"
             whileHover={{ scale: 1.1 }}
-            aria-label="LinkedIn"
+            aria-label="WhatsApp"
           >
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.761 0 5-2.239 5-5v-14c0-2.761-2.239-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
-            </svg>
+            <MessageCircle className="w-5 h-5" />
           </motion.a>
+          
           <motion.a
             href={member.social.email}
-            className="p-2 rounded-lg glass-hover text-muted-foreground hover:text-emerald-500"
+            className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all"
             whileHover={{ scale: 1.1 }}
             aria-label="Email"
           >
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
-            </svg>
+            <Mail className="w-5 h-5" />
           </motion.a>
         </div>
       </div>
@@ -122,12 +121,12 @@ export function Team() {
               Our Leadership
             </h2>
             <p className="text-lg text-muted-foreground">
-              Meet the Year 1 Data Science students from ULK behind WANDAA TECH.
+              Leading the digital transformation at WANDAA TECH with a focus on AI and Data Science.
             </p>
           </motion.div>
 
           {/* Team Grid */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {teamMembers.map((member, i) => (
               <TeamCard key={member.id} member={member} index={i} />
             ))}
