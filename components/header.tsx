@@ -54,7 +54,7 @@ export function Header() {
               <div className="flex flex-col gap-2">
                 <div className="mb-8 px-4">
                   <h1 className="text-xl font-black text-white tracking-tighter uppercase">
-                    WANDAA <span className="text-emerald-500">TECH</span>
+                    VAF UBWENGE <span className="text-emerald-500">TECH</span>
                   </h1>
                   <p className="text-[10px] text-emerald-500/50 font-mono uppercase tracking-widest mt-1">Intelligence Systems</p>
                 </div>

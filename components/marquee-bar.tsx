@@ -11,7 +11,7 @@ const sciFiColors = [
   "#10b981"  // Emerald (Back)
 ];
 
-const message = " IN WHATEVER YOU DO YOU MUST BE NUMBER ONE — WANDAA TECH  —";
+const message = " IN WHATEVER YOU DO YOU MUST BE NUMBER ONE — VAF UBWENGE TECH  —";
 
 export function MarqueeBar() {
   return (

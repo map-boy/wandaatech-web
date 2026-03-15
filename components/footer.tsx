@@ -16,7 +16,7 @@ export function Footer() {
               <div className="w-8 h-8 bg-primary-foreground rounded-sm flex items-center justify-center">
                 <span className="text-primary font-bold text-sm">W</span>
               </div>
-              <span className="font-bold text-lg">WANDAA</span>
+              <span className="font-bold text-lg">VAF UBWENGE TECH</span>
             </div>
             <p className="text-primary-foreground/70 text-sm">
               Building innovative digital solutions for Africa
@@ -96,7 +96,7 @@ export function Footer() {
         {/* Bottom */}
         <div className="py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-primary-foreground/70">
           <p>
-            © {currentYear} WANDAA TECH. All rights reserved.
+            © {currentYear} VAF UBWENGE TECH. All rights reserved.
           </p>
           <div className="flex gap-6">
             {/* UPDATED: Real links to your new legal pages */}

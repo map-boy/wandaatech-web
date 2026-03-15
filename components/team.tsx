@@ -121,7 +121,7 @@ export function Team() {
               Our Leadership
             </h2>
             <p className="text-lg text-muted-foreground">
-              Leading the digital transformation at WANDAA TECH with a focus on AI and Data Science.
+              Leading the digital transformation at VAF UBWENGE TECH with a focus on AI and Data Science.
             </p>
           </motion.div>
 

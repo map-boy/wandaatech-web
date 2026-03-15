@@ -10,7 +10,7 @@ export function About() {
           {/* Section Header */}
           <div className="space-y-4 max-w-2xl">
             <h2 className="text-4xl sm:text-5xl font-bold text-foreground">
-              About WANDAA TECH
+              About VAF UBWENGE TECH
             </h2>
             <p className="text-lg text-muted-foreground">
               We are a student-led startup built by passionate innovators
@@ -26,7 +26,7 @@ export function About() {
                   Founded by Data Science Students
                 </h3>
                 <p className="text-muted-foreground leading-relaxed">
-                  WANDAA TECH was created by  Data Science students from Université Libre de Kigali (ULK). What started as a vision to solve real-world problems has evolved into a full-fledged technology startup.
+                  VAF UBWENGE TECH was created by  Data Science students from Université Libre de Kigali (ULK). What started as a vision to solve real-world problems has evolved into a full-fledged technology startup.
                 </p>
               </div>
 
@@ -64,7 +64,7 @@ export function About() {
             <div className="relative rounded-2xl aspect-square overflow-hidden border border-border shadow-xl">
               <Image
                 src="/company-logo.jpg"
-                alt="WANDAA TECH"
+                alt="VAF UBWENGE TECH"
                 fill
                 className="object-cover"
                 sizes="(max-width: 768px) 100vw, 50vw"
