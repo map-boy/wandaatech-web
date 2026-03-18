@@ -1,9 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Menu, X, Home, Info, Briefcase, Users, Mail, ShieldCheck, FileText, ChevronRight } from 'lucide-react'
+import { 
+  Menu, X, Home, Info, Briefcase, Users, 
+  Mail, ShieldCheck, FileText, ChevronRight,
+  Sun, Moon 
+} from 'lucide-react'
 import Link from 'next/link'
+import { useTheme } from 'next-themes'
 
 const navItems = [
   { name: 'Home', href: '#', icon: Home },
@@ -17,10 +22,16 @@ const navItems = [
 
 export function Header() {
   const [isOpen, setIsOpen] = useState(false)
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   return (
     <>
-      {/* Mobile & Desktop Toggle Button (Always visible at top-left) */}
+      {/* Mobile-Friendly Toggle Button */}
       <div className="fixed top-6 left-6 z-[100]">
         <button 
           onClick={() => setIsOpen(!isOpen)}
@@ -30,11 +41,10 @@ export function Header() {
         </button>
       </div>
 
-      {/* Foldable Sidebar Overlay */}
       <AnimatePresence>
         {isOpen && (
           <>
-            {/* Dark Backdrop */}
+            {/* Backdrop for Mobile Focus */}
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -43,23 +53,46 @@ export function Header() {
               className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[80]"
             />
 
-            {/* Sidebar Panel */}
+            {/* Sidebar Panel - 280px width is perfect for mobile */}
             <motion.div 
               initial={{ x: -300 }}
               animate={{ x: 0 }}
               exit={{ x: -300 }}
               transition={{ type: 'spring', damping: 20, stiffness: 100 }}
-              className="fixed top-0 left-0 h-full w-[280px] bg-slate-950 border-r border-emerald-500/20 z-[90] p-8 pt-24 shadow-2xl"
+              className="fixed top-0 left-0 h-full w-[280px] bg-slate-950 dark:bg-slate-950 light:bg-white border-r border-emerald-500/20 z-[90] p-6 pt-24 shadow-2xl flex flex-col"
             >
-              <div className="flex flex-col gap-2">
-                <div className="mb-8 px-4">
-                  <h1 className="text-xl font-black text-white tracking-tighter uppercase">
+              <div className="flex flex-col gap-2 flex-grow overflow-y-auto">
+                {/* Branding */}
+                <div className="mb-2 px-2">
+                  <h1 className="text-xl font-black text-white dark:text-white light:text-slate-950 tracking-tighter uppercase">
                     VAF UBWENGE <span className="text-emerald-500">TECH</span>
                   </h1>
                   <p className="text-[10px] text-emerald-500/50 font-mono uppercase tracking-widest mt-1">Intelligence Systems</p>
                 </div>
 
-                <nav className="space-y-2">
+                {/* Theme Toggle - Placed ABOVE Nav for easy thumb access */}
+                {mounted && (
+                  <div className="mb-6 mt-2 flex items-center justify-between p-2 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
+                    <span className="text-[10px] text-slate-500 font-mono uppercase ml-2">Theme</span>
+                    <div className="flex gap-1">
+                      <button 
+                        onClick={() => setTheme('light')}
+                        className={`p-2 rounded-lg transition-all ${theme === 'light' ? 'bg-emerald-500 text-slate-950' : 'text-slate-500'}`}
+                      >
+                        <Sun size={16} />
+                      </button>
+                      <button 
+                        onClick={() => setTheme('dark')}
+                        className={`p-2 rounded-lg transition-all ${theme === 'dark' ? 'bg-emerald-500 text-slate-950' : 'text-slate-500'}`}
+                      >
+                        <Moon size={16} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Navigation Items - Large touch targets for phones */}
+                <nav className="space-y-1">
                   {navItems.map((item) => (
                     <Link 
                       key={item.name} 
@@ -69,19 +102,22 @@ export function Header() {
                     >
                       <div className="flex items-center gap-4">
                         <item.icon size={20} className="text-slate-400 group-hover:text-emerald-500 transition-colors" />
-                        <span className="text-sm font-bold text-slate-300 group-hover:text-white uppercase tracking-tight">
+                        <span className="text-sm font-bold text-slate-300 dark:text-slate-300 light:text-slate-700 group-hover:text-emerald-500 uppercase tracking-tight">
                           {item.name}
                         </span>
                       </div>
-                      <ChevronRight size={14} className="text-slate-600 group-hover:text-emerald-500 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
+                      <ChevronRight size={14} className="text-slate-600 group-hover:text-emerald-500 opacity-0 group-hover:opacity-100 transition-all" />
                     </Link>
                   ))}
                 </nav>
+              </div>
 
-                <div className="absolute bottom-10 left-8 right-8">
-                  <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10">
-                    <p className="text-[10px] text-slate-500 font-mono uppercase text-center">System Status: <span className="text-emerald-500">Online</span></p>
-                  </div>
+              {/* Status Section - Fixed at the bottom */}
+              <div className="mt-auto pt-4">
+                <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10">
+                  <p className="text-[10px] text-slate-500 font-mono uppercase text-center">
+                    Status: <span className="text-emerald-500">Online</span>
+                  </p>
                 </div>
               </div>
             </motion.div>
