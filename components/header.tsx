@@ -4,20 +4,20 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Menu, X, Home, Info, Briefcase, Users, 
-  Mail, ShieldCheck, FileText, ChevronRight,
-  Sun, Moon 
+  Mail, ChevronRight, Sun, Moon, Zap, Microscope 
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTheme } from 'next-themes'
 
+// Updated NavItems to point to dedicated pages for QR Engine and Intelligence Lab
 const navItems = [
-  { name: 'Home', href: '#', icon: Home },
-  { name: 'About', href: '#about', icon: Info },
-  { name: 'Easy GO', href: '#project', icon: Briefcase },
-  { name: 'Team', href: '#team', icon: Users },
-  { name: 'Contact', href: '#contact', icon: Mail },
-  { name: 'Privacy', href: '/privacy', icon: ShieldCheck },
-  { name: 'Terms', href: '/terms', icon: FileText },
+  { name: 'Home', href: '/', icon: Home },
+  { name: 'About', href: '/#about', icon: Info },
+  { name: 'Projects', href: '/projects', icon: Briefcase },
+  { name: 'QR Engine', href: '/qr-engine', icon: Zap },
+  { name: 'Intelligence Lab', href: '/lab', icon: Microscope },
+  { name: 'Team', href: '/#team', icon: Users },
+  { name: 'Contact', href: '/#contact', icon: Mail },
 ]
 
 export function Header() {
@@ -25,6 +25,7 @@ export function Header() {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
+  // Ensure component is mounted to avoid hydration mismatch with next-themes
   useEffect(() => {
     setMounted(true)
   }, [])
@@ -44,7 +45,7 @@ export function Header() {
       <AnimatePresence>
         {isOpen && (
           <>
-            {/* Backdrop for Mobile Focus */}
+            {/* Backdrop */}
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -53,24 +54,24 @@ export function Header() {
               className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[80]"
             />
 
-            {/* Sidebar Panel - 280px width is perfect for mobile */}
+            {/* Sidebar Panel */}
             <motion.div 
               initial={{ x: -300 }}
               animate={{ x: 0 }}
               exit={{ x: -300 }}
               transition={{ type: 'spring', damping: 20, stiffness: 100 }}
-              className="fixed top-0 left-0 h-full w-[280px] bg-slate-950 dark:bg-slate-950 light:bg-white border-r border-emerald-500/20 z-[90] p-6 pt-24 shadow-2xl flex flex-col"
+              className="fixed top-0 left-0 h-full w-[280px] bg-white dark:bg-slate-950 border-r border-emerald-500/20 z-[90] p-6 pt-24 shadow-2xl flex flex-col"
             >
               <div className="flex flex-col gap-2 flex-grow overflow-y-auto">
                 {/* Branding */}
                 <div className="mb-2 px-2">
-                  <h1 className="text-xl font-black text-white dark:text-white light:text-slate-950 tracking-tighter uppercase">
+                  <h1 className="text-xl font-black text-slate-950 dark:text-white tracking-tighter uppercase">
                     VAF UBWENGE <span className="text-emerald-500">TECH</span>
                   </h1>
                   <p className="text-[10px] text-emerald-500/50 font-mono uppercase tracking-widest mt-1">Intelligence Systems</p>
                 </div>
 
-                {/* Theme Toggle - Placed ABOVE Nav for easy thumb access */}
+                {/* Theme Toggle */}
                 {mounted && (
                   <div className="mb-6 mt-2 flex items-center justify-between p-2 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
                     <span className="text-[10px] text-slate-500 font-mono uppercase ml-2">Theme</span>
@@ -91,7 +92,7 @@ export function Header() {
                   </div>
                 )}
 
-                {/* Navigation Items - Large touch targets for phones */}
+                {/* Navigation Items */}
                 <nav className="space-y-1">
                   {navItems.map((item) => (
                     <Link 
@@ -102,7 +103,7 @@ export function Header() {
                     >
                       <div className="flex items-center gap-4">
                         <item.icon size={20} className="text-slate-400 group-hover:text-emerald-500 transition-colors" />
-                        <span className="text-sm font-bold text-slate-300 dark:text-slate-300 light:text-slate-700 group-hover:text-emerald-500 uppercase tracking-tight">
+                        <span className="text-sm font-bold text-slate-700 dark:text-slate-300 group-hover:text-emerald-500 uppercase tracking-tight">
                           {item.name}
                         </span>
                       </div>
@@ -112,7 +113,7 @@ export function Header() {
                 </nav>
               </div>
 
-              {/* Status Section - Fixed at the bottom */}
+              {/* Status Section */}
               <div className="mt-auto pt-4">
                 <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10">
                   <p className="text-[10px] text-slate-500 font-mono uppercase text-center">
