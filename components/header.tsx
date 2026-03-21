@@ -4,20 +4,19 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Menu, X, Home, Info, Briefcase, Users, 
-  Mail, ChevronRight, Sun, Moon, Zap, Microscope 
+  Mail, ChevronRight, Sun, Moon, Zap, Microscope
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTheme } from 'next-themes'
 
-// Updated NavItems to point to dedicated pages for QR Engine and Intelligence Lab
 const navItems = [
-  { name: 'Home', href: '/', icon: Home },
-  { name: 'About', href: '/#about', icon: Info },
-  { name: 'Projects', href: '/projects', icon: Briefcase },
-  { name: 'QR Engine', href: '/qr-engine', icon: Zap },
-  { name: 'Intelligence Lab', href: '/lab', icon: Microscope },
-  { name: 'Team', href: '/#team', icon: Users },
-  { name: 'Contact', href: '/#contact', icon: Mail },
+  { name: 'Home',             href: '/',            icon: Home },
+  { name: 'About',            href: '/#about',      icon: Info },
+  { name: 'Projects',         href: '/projects',    icon: Briefcase },
+  { name: 'QR Engine',        href: '/qr-engine',   icon: Zap },
+  { name: 'Intelligence Lab', href: '/lab',         icon: Microscope },
+  { name: 'Team',             href: '/#team',       icon: Users },
+  { name: 'Contact',          href: '/#contact',    icon: Mail },
 ]
 
 export function Header() {
@@ -25,7 +24,6 @@ export function Header() {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
-  // Ensure component is mounted to avoid hydration mismatch with next-themes
   useEffect(() => {
     setMounted(true)
   }, [])
