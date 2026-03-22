@@ -9,15 +9,15 @@ import {
 } from 'lucide-react'
 
 const TOOLS = [
-  { id: 'docx-to-pdf', icon: '📝', label: 'DOCX → PDF', desc: 'Word document to PDF', tag: 'Most used', tagColor: 'emerald', accept: '.docx,.doc', group: 'to-pdf' },
-  { id: 'txt-to-pdf',  icon: '📃', label: 'TXT → PDF',  desc: 'Plain text to PDF',    tag: '', tagColor: '', accept: '.txt', group: 'to-pdf' },
+  { id: 'docx-to-pdf', icon: '📝', label: 'DOCX → PDF', desc: 'Word document to PDF (text, images, mixed)', tag: 'Most used', tagColor: 'emerald', accept: '.docx,.doc', group: 'to-pdf' },
+  { id: 'txt-to-pdf',  icon: '📃', label: 'TXT → PDF',  desc: 'Plain text to PDF', tag: '', tagColor: '', accept: '.txt', group: 'to-pdf' },
   { id: 'img-to-pdf',  icon: '🖼️', label: 'Image → PDF', desc: 'JPG, PNG, WebP to PDF', tag: 'Popular', tagColor: 'sky', accept: '.jpg,.jpeg,.png,.webp,.bmp', group: 'to-pdf' },
   { id: 'csv-to-pdf',  icon: '📊', label: 'CSV → PDF',  desc: 'Spreadsheet data to PDF', tag: '', tagColor: '', accept: '.csv', group: 'to-pdf' },
-  { id: 'html-to-pdf', icon: '🌐', label: 'HTML → PDF', desc: 'Web page file to PDF',  tag: '', tagColor: '', accept: '.html,.htm', group: 'to-pdf' },
+  { id: 'html-to-pdf', icon: '🌐', label: 'HTML → PDF', desc: 'Web page file to PDF', tag: '', tagColor: '', accept: '.html,.htm', group: 'to-pdf' },
   { id: 'compress-any',icon: '📦', label: 'Compress Any File', desc: 'PDF, DOCX, TXT, images — any file', tag: 'Universal', tagColor: 'amber', accept: '*', group: 'compress' },
   { id: 'img-to-jpg',  icon: '📸', label: 'Image → JPEG', desc: 'Convert any image to JPEG', tag: '', tagColor: '', accept: '.png,.webp,.bmp,.gif', group: 'convert' },
-  { id: 'img-to-png',  icon: '🖼️', label: 'Image → PNG',  desc: 'Convert any image to PNG',  tag: '', tagColor: '', accept: '.jpg,.jpeg,.webp,.bmp', group: 'convert' },
-  { id: 'pdf-to-img',  icon: '📄', label: 'PDF → Images', desc: 'Extract PDF pages as PNG',   tag: '', tagColor: '', accept: '.pdf', group: 'convert' },
+  { id: 'img-to-png',  icon: '🖼️', label: 'Image → PNG',  desc: 'Convert any image to PNG', tag: '', tagColor: '', accept: '.jpg,.jpeg,.webp,.bmp', group: 'convert' },
+  { id: 'pdf-to-img',  icon: '📄', label: 'PDF → Images', desc: 'Extract PDF pages as PNG', tag: '', tagColor: '', accept: '.pdf', group: 'convert' },
 ]
 
 const GROUPS = [
@@ -48,32 +48,38 @@ function formatSize(bytes: number) {
   return bytes + ' B'
 }
 
-// ── Load external script once ──
 function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
     if (document.querySelector(`script[src="${src}"]`)) { resolve(); return }
     const s = document.createElement('script')
     s.src = src
     s.onload = () => resolve()
-    s.onerror = () => reject(new Error(`Failed to load ${src}`))
+    s.onerror = () => reject(new Error(`Failed to load library from ${src}`))
     document.head.appendChild(s)
   })
 }
 
-// ── Wait for a global variable to appear on window ──
-function waitForGlobal(name: string, timeoutMs = 10000): Promise<void> {
+function waitForGlobal(name: string, ms = 10000): Promise<void> {
   return new Promise((resolve, reject) => {
-    const start = Date.now()
+    const t = Date.now()
     const check = () => {
       if ((window as any)[name] !== undefined) { resolve(); return }
-      if (Date.now() - start > timeoutMs) { reject(new Error(`${name} did not load`)); return }
+      if (Date.now() - t > ms) { reject(new Error(`${name} did not load in time`)); return }
       setTimeout(check, 100)
     }
     check()
   })
 }
 
-// ── Build PDF from plain text, auto-shrink font to hit KB target ──
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload  = () => resolve(img)
+    img.onerror = () => reject(new Error('Could not load image'))
+    img.src = src
+  })
+}
+
 async function buildTextPdf(
   text: string,
   fileName: string,
@@ -83,44 +89,28 @@ async function buildTextPdf(
 ): Promise<{ blob: Blob; name: string }> {
   await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
   await waitForGlobal('jspdf')
-
   const { jsPDF } = (window as any).jspdf
   const fontSizes = targetBytes ? [12, 10, 9, 8, 7, 6] : [12]
 
   for (const fontSize of fontSizes) {
     if (onProgress && targetBytes) onProgress(`Building PDF at font size ${fontSize}pt...`)
-
-    const pdf = new jsPDF({
-      unit: 'mm',
-      format: 'a4',
-      orientation: landscape ? 'landscape' : 'portrait',
-    })
-
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: landscape ? 'landscape' : 'portrait' })
     pdf.setFontSize(fontSize)
-    const pageW  = landscape ? 277 : 190
-    const pageH  = landscape ? 190 : 277
+    const pageW = landscape ? 277 : 190
+    const pageH = landscape ? 190 : 277
     const margin = 10
     const lineH  = fontSize * 0.4 + 1.5
     const lines  = pdf.splitTextToSize(text, pageW - margin * 2)
-
     let y = margin + fontSize * 0.4
     for (const line of lines) {
-      if (y + lineH > pageH - margin) {
-        pdf.addPage()
-        y = margin + fontSize * 0.4
-      }
-      pdf.text(line, margin, y)
-      y += lineH
+      if (y + lineH > pageH - margin) { pdf.addPage(); y = margin + fontSize * 0.4 }
+      pdf.text(line, margin, y); y += lineH
     }
-
     const blob: Blob = pdf.output('blob')
-
-    if (!targetBytes || blob.size <= targetBytes) {
-      return { blob, name: fileName }
-    }
+    if (!targetBytes || blob.size <= targetBytes) return { blob, name: fileName }
   }
 
-  // Return smallest possible if still over target
+  // Fallback smallest
   const pdf = new jsPDF({ unit: 'mm', format: 'a4' })
   pdf.setFontSize(6)
   const lines = pdf.splitTextToSize(text, 170)
@@ -145,16 +135,18 @@ export default function ConverterPage() {
   const [dragOver, setDragOver]           = useState(false)
   const [targetKB, setTargetKB]           = useState<string>('')
   const [progressMsg, setProgressMsg]     = useState('')
+  const [docInfo, setDocInfo]             = useState<string>('')
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const zipLevel   = COMPRESS_LEVELS[compressLevel].zipLevel
+  const zipLevel    = COMPRESS_LEVELS[compressLevel].zipLevel
   const targetBytes = targetKB ? parseFloat(targetKB) * 1024 : null
   const visibleTools = TOOLS.filter(t => t.group === activeGroup)
 
   const reset = useCallback(() => {
     setFile(null); setStatus('idle'); setErrorMsg('')
     if (downloadUrl) URL.revokeObjectURL(downloadUrl)
-    setDownloadUrl(null); setDownloadName(''); setOutputSize(null); setProgressMsg('')
+    setDownloadUrl(null); setDownloadName(''); setOutputSize(null)
+    setProgressMsg(''); setDocInfo('')
   }, [downloadUrl])
 
   const handleFile  = (f: File) => { reset(); setFile(f) }
@@ -168,30 +160,194 @@ export default function ConverterPage() {
     reset()
   }
 
-  // ── DOCX → PDF (fixed) ──
+  // ═══════════════════════════════════════════════════
+  // DOCX → PDF — handles TEXT + IMAGES + VIDEOS
+  // ═══════════════════════════════════════════════════
   const doDocxToPdf = async (file: File): Promise<{ blob: Blob; name: string }> => {
-    setProgressMsg('Loading Word document reader...')
+    setProgressMsg('Opening DOCX file...')
+
+    // Load required libraries
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js')
+    await waitForGlobal('JSZip')
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
+    await waitForGlobal('jspdf')
     await loadScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js')
     await waitForGlobal('mammoth')
 
-    setProgressMsg('Extracting text from document...')
     const arrayBuffer = await file.arrayBuffer()
 
-    let text = ''
+    // ── Step 1: Unzip DOCX and extract images ──
+    setProgressMsg('Extracting contents...')
+    const zip = await (window as any).JSZip.loadAsync(arrayBuffer)
+
+    // Get all image files from word/media/
+    const IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff', 'emf', 'wmf']
+    const VIDEO_EXTS = ['mp4', 'avi', 'mov', 'wmv', 'mkv', 'webm', 'flv']
+
+    const mediaFiles = Object.keys(zip.files).filter(
+      f => f.startsWith('word/media/') && !zip.files[f].dir
+    )
+
+    const imageFiles: string[] = []
+    const videoFiles: string[] = []
+
+    for (const mf of mediaFiles) {
+      const ext = mf.split('.').pop()?.toLowerCase() || ''
+      if (IMAGE_EXTS.includes(ext)) imageFiles.push(mf)
+      else if (VIDEO_EXTS.includes(ext)) videoFiles.push(mf)
+    }
+
+    setProgressMsg(`Found: ${imageFiles.length} image(s), ${videoFiles.length} video(s)`)
+
+    // ── Step 2: Extract text ──
+    let docText = ''
     try {
-      // extractRawText is more reliable than convertToHtml for text-only PDF
       const result = await (window as any).mammoth.extractRawText({ arrayBuffer })
-      text = (result.value || '').trim()
-    } catch {
-      throw new Error('Could not read this DOCX file. Make sure it is not corrupted or password protected.')
+      docText = (result.value || '').trim()
+    } catch { /* continue even if text extraction fails */ }
+
+    const hasImages = imageFiles.length > 0
+    const hasText   = docText.length > 5
+    const hasVideos = videoFiles.length > 0
+
+    // Build info string for user
+    const parts = []
+    if (hasText)   parts.push(`${docText.length} characters of text`)
+    if (hasImages) parts.push(`${imageFiles.length} image(s)`)
+    if (hasVideos) parts.push(`${videoFiles.length} video(s) — note added in PDF`)
+    setDocInfo(parts.join(' · '))
+
+    if (!hasText && !hasImages) {
+      throw new Error('This document appears empty or uses a format that cannot be read. Try saving it as .docx from Word first.')
     }
 
-    if (!text || text.length < 2) {
-      throw new Error('No text found in this document. The file may be image-based or empty.')
+    const { jsPDF } = (window as any).jspdf
+
+    // ── Step 3: Build PDF based on content type ──
+
+    // IMAGE-BASED or MIXED document
+    if (hasImages) {
+      setProgressMsg('Building PDF with images...')
+
+      // Extract all images as data URLs
+      const MIME: Record<string, string> = {
+        jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+        gif: 'image/gif', bmp: 'image/bmp', webp: 'image/webp',
+      }
+
+      const imgDataUrls: string[] = []
+      for (let i = 0; i < imageFiles.length; i++) {
+        setProgressMsg(`Loading image ${i + 1} of ${imageFiles.length}...`)
+        const ext  = imageFiles[i].split('.').pop()?.toLowerCase() || 'jpg'
+        const mime = MIME[ext] || 'image/jpeg'
+        const b64  = await zip.files[imageFiles[i]].async('base64')
+        imgDataUrls.push(`data:${mime};base64,${b64}`)
+      }
+
+      // Auto-compress loop to fit targetBytes
+      const qualities = targetBytes ? [85, 70, 55, 42, 30, 20, 12] : [82]
+      let bestBlob: Blob | null = null
+
+      for (const q of qualities) {
+        if (targetBytes) setProgressMsg(`Optimizing quality ${q}%...`)
+
+        const firstImg = await loadImage(imgDataUrls[0])
+        const pdf = new jsPDF({
+          orientation: firstImg.width > firstImg.height ? 'landscape' : 'portrait',
+          unit: 'px',
+          format: [firstImg.width, firstImg.height],
+          compress: true,
+        })
+
+        // Page 1: text header if text exists
+        let pageIndex = 0
+
+        // Add text page first if document has text content
+        if (hasText) {
+          // We add text on first page as header, then images follow
+          pdf.setFontSize(10)
+          const maxW = firstImg.width * 0.264583 // px to mm approx
+          const textLines = pdf.splitTextToSize(docText.substring(0, 2000), Math.min(maxW - 20, 170))
+          // Add a text-only first page in A4
+          // Actually — put text as caption under first image instead
+          // (keeps it readable without breaking layout)
+        }
+
+        // Add each image as a full page
+        for (let i = 0; i < imgDataUrls.length; i++) {
+          setProgressMsg(`Adding image ${i + 1} of ${imgDataUrls.length} at quality ${q}%...`)
+          const img = await loadImage(imgDataUrls[i])
+          const w = img.width, h = img.height
+
+          if (i > 0) {
+            pdf.addPage([w, h], w > h ? 'landscape' : 'portrait')
+          }
+
+          // Draw image to canvas at desired quality
+          const canvas = document.createElement('canvas')
+          canvas.width = w; canvas.height = h
+          canvas.getContext('2d')!.drawImage(img, 0, 0)
+          const dataUrl = canvas.toDataURL('image/jpeg', q / 100)
+          pdf.addImage(dataUrl, 'JPEG', 0, 0, w, h)
+          pageIndex++
+        }
+
+        // If there is text, add a final text page after all images
+        if (hasText) {
+          pdf.addPage()
+          pdf.setFontSize(11)
+          const textLines = pdf.splitTextToSize(docText, 180)
+          let y = 15
+          for (const line of textLines) {
+            if (y > 280) { pdf.addPage(); y = 15 }
+            pdf.text(line, 10, y); y += 6
+          }
+        }
+
+        // If there are videos, add a note page
+        if (hasVideos) {
+          pdf.addPage()
+          pdf.setFontSize(13)
+          pdf.setTextColor(150, 150, 150)
+          pdf.text('Video Content Note', 10, 20)
+          pdf.setFontSize(10)
+          pdf.text('This document contained the following video file(s).', 10, 32)
+          pdf.text('Videos cannot be embedded in PDF format.', 10, 40)
+          pdf.text('Please refer to the original DOCX file to view them.', 10, 48)
+          pdf.setFontSize(9)
+          videoFiles.forEach((vf, i) => {
+            pdf.text(`• ${vf.split('/').pop()}`, 10, 62 + i * 8)
+          })
+        }
+
+        const blob: Blob = pdf.output('blob')
+        bestBlob = blob
+        if (!targetBytes || blob.size <= targetBytes) break
+      }
+
+      return {
+        blob: bestBlob!,
+        name: file.name.replace(/\.[^.]+$/, '') + '.pdf',
+      }
     }
 
-    setProgressMsg(`Found ${text.length} characters. Building PDF...`)
-    return buildTextPdf(text, file.name.replace(/\.[^.]+$/, '') + '.pdf', targetBytes, false, setProgressMsg)
+    // TEXT-ONLY document (no images found)
+    setProgressMsg('Building text PDF...')
+
+    // Add video note to text if videos exist
+    let fullText = docText
+    if (hasVideos) {
+      fullText += '\n\n---\nNote: This document contained video file(s) that cannot be embedded in PDF:\n'
+      videoFiles.forEach(vf => { fullText += `• ${vf.split('/').pop()}\n` })
+    }
+
+    return buildTextPdf(
+      fullText,
+      file.name.replace(/\.[^.]+$/, '') + '.pdf',
+      targetBytes,
+      false,
+      setProgressMsg
+    )
   }
 
   // ── TXT → PDF ──
@@ -222,7 +378,6 @@ export default function ConverterPage() {
     const html = await file.text()
     const tmp = document.createElement('div')
     tmp.innerHTML = html
-    // Remove scripts and styles from extracted text
     tmp.querySelectorAll('script,style').forEach(el => el.remove())
     const text = (tmp.innerText || tmp.textContent || '').trim()
     if (!text) throw new Error('No readable text found in this HTML file.')
@@ -230,12 +385,11 @@ export default function ConverterPage() {
     return buildTextPdf(text, file.name.replace(/\.[^.]+$/, '') + '.pdf', targetBytes, false, setProgressMsg)
   }
 
-  // ── Image → PDF with auto KB target ──
+  // ── Image → PDF ──
   const doImgToPdf = async (file: File): Promise<{ blob: Blob; name: string }> => {
     setProgressMsg('Loading image...')
     await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
     await waitForGlobal('jspdf')
-
     return new Promise((resolve, reject) => {
       const img = new Image()
       const url = URL.createObjectURL(file)
@@ -246,10 +400,8 @@ export default function ConverterPage() {
           canvas.width = w; canvas.height = h
           canvas.getContext('2d')!.drawImage(img, 0, 0)
           URL.revokeObjectURL(url)
-
           const { jsPDF } = (window as any).jspdf
           const orientation = w > h ? 'landscape' : 'portrait'
-
           if (!targetBytes) {
             setProgressMsg('Creating PDF...')
             const pdf = new jsPDF({ orientation, unit: 'px', format: [w, h] })
@@ -257,8 +409,6 @@ export default function ConverterPage() {
             resolve({ blob: pdf.output('blob'), name: file.name.replace(/\.[^.]+$/, '') + '.pdf' })
             return
           }
-
-          // Auto-compress to fit target
           const qualities = [85, 70, 55, 42, 30, 22, 14, 8]
           let bestBlob: Blob = new Blob()
           for (const q of qualities) {
@@ -270,9 +420,7 @@ export default function ConverterPage() {
             if (blob.size <= targetBytes) break
           }
           resolve({ blob: bestBlob, name: file.name.replace(/\.[^.]+$/, '') + '.pdf' })
-        } catch (e: any) {
-          reject(e)
-        }
+        } catch (e: any) { reject(e) }
       }
       img.onerror = () => reject(new Error('Cannot load image file'))
       img.src = url
@@ -282,7 +430,6 @@ export default function ConverterPage() {
   // ── Universal compressor ──
   const doCompressAny = async (file: File): Promise<{ blob: Blob; name: string }> => {
     const isImage = file.type.startsWith('image/')
-
     if (isImage) {
       setProgressMsg('Compressing image...')
       return new Promise((resolve, reject) => {
@@ -305,7 +452,7 @@ export default function ConverterPage() {
         img.src = url
       })
     } else {
-      setProgressMsg('Compressing file...')
+      setProgressMsg('Compressing file into ZIP...')
       await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js')
       await waitForGlobal('JSZip')
       const arrayBuffer = await file.arrayBuffer()
@@ -326,11 +473,9 @@ export default function ConverterPage() {
       'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
     await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js')
     await waitForGlobal('JSZip')
-
     const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise
     const zip = new (window as any).JSZip()
     const folder = zip.folder('pages')!
-
     for (let i = 1; i <= pdf.numPages; i++) {
       setProgressMsg(`Extracting page ${i} of ${pdf.numPages}...`)
       const page = await pdf.getPage(i)
@@ -340,7 +485,6 @@ export default function ConverterPage() {
       await page.render({ canvasContext: canvas.getContext('2d')!, viewport: vp }).promise
       folder.file(`page-${String(i).padStart(3, '0')}.png`, canvas.toDataURL('image/png').split(',')[1], { base64: true })
     }
-
     const blob = await zip.generateAsync({ type: 'blob' })
     return { blob, name: file.name.replace(/\.[^.]+$/, '') + '_pages.zip' }
   }
@@ -368,7 +512,7 @@ export default function ConverterPage() {
   // ── Main run ──
   const run = async () => {
     if (!file) return
-    setStatus('processing'); setErrorMsg(''); setProgressMsg('Starting...')
+    setStatus('processing'); setErrorMsg(''); setProgressMsg('Starting...'); setDocInfo('')
     try {
       let result: { blob: Blob; name: string }
       switch (tool.id) {
@@ -444,7 +588,26 @@ export default function ConverterPage() {
           ))}
         </div>
 
-        {/* KB target — → PDF tab only */}
+        {/* DOCX info box */}
+        <AnimatePresence>
+          {tool.id === 'docx-to-pdf' && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-6 overflow-hidden">
+              <div className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 space-y-2">
+                <p className="text-sm font-bold text-emerald-400">What this handles automatically</p>
+                <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1.5"><span>📝</span> Text documents</div>
+                  <div className="flex items-center gap-1.5"><span>🖼️</span> Docs with images</div>
+                  <div className="flex items-center gap-1.5"><span>📄</span> Mixed content</div>
+                  <div className="flex items-center gap-1.5"><span>📊</span> Tables → text</div>
+                  <div className="flex items-center gap-1.5"><span>🗜️</span> KB size target</div>
+                  <div className="flex items-center gap-1.5"><span>🎥</span> Video → note added</div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* KB target */}
         <AnimatePresence>
           {isToPdf && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-6 overflow-hidden">
@@ -456,7 +619,7 @@ export default function ConverterPage() {
                   </p>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Enter the max KB your PDF must be. The converter will automatically reduce quality until it fits. Leave empty to use default.
+                  Enter the max KB your PDF must be. The converter auto-reduces quality until it fits.
                 </p>
                 <div className="flex items-center gap-3">
                   <div className="relative flex-1">
@@ -504,7 +667,7 @@ export default function ConverterPage() {
                 ))}
               </div>
               <p className="text-xs text-muted-foreground mt-3">
-                Accepts: <span className="text-emerald-400">PDF · DOCX · TXT · PPTX · XLSX · JPG · PNG · CSV · any file</span>
+                Accepts: <span className="text-emerald-400">PDF · DOCX · TXT · JPG · PNG · any file</span>
               </p>
             </motion.div>
           )}
@@ -596,11 +759,10 @@ export default function ConverterPage() {
                   }
                   <div className="flex-1 space-y-1">
                     <p className="font-bold text-foreground">
-                      {fitsTarget
-                        ? (isCompressor ? 'Compressed!' : 'Converted!')
-                        : 'Done — slightly over target'}
+                      {fitsTarget ? (isCompressor ? 'Compressed!' : 'Converted!') : 'Done — slightly over target'}
                     </p>
                     <p className="text-sm text-muted-foreground">{downloadName}</p>
+                    {docInfo && <p className="text-xs text-emerald-400">Detected: {docInfo}</p>}
                     {outputSize !== null && (
                       <div className="space-y-0.5 mt-1">
                         {file && <p className="text-sm">
@@ -610,10 +772,10 @@ export default function ConverterPage() {
                           <p className={`text-xs font-semibold ${fitsTarget ? 'text-emerald-400' : 'text-amber-400'}`}>
                             {fitsTarget
                               ? `✅ Fits within ${targetKB} KB`
-                              : `⚠️ ${formatSize(outputSize)} — content may be too large to compress further`}
+                              : `⚠️ ${formatSize(outputSize)} — content is too dense to compress further`}
                           </p>
                         )}
-                        {file && (isCompressor || isToPdf) && outputSize < file.size && (
+                        {file && outputSize < file.size && (
                           <p className="text-xs text-emerald-400">Saved {Math.round((1 - outputSize / file.size) * 100)}%</p>
                         )}
                       </div>
