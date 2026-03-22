@@ -380,54 +380,75 @@ export default function ConverterPage() {
   // COMPRESS — with KB/MB target input
   // ══════════════════════════════════
   const doCompressAny = async (file: File) => {
-    const isImage = file.type.startsWith('image/')
+    const ext  = file.name.split('.').pop()?.toLowerCase() || ''
 
-    if (isImage) {
+    // Files that can be re-encoded at lower quality (image canvas method)
+    const canvasTypes = ['jpg','jpeg','png','webp','bmp','gif','tiff']
+    // Files that are ALREADY compressed — ZIP won't help them much
+    const alreadyCompressed = ['jpg','jpeg','mp4','mp3','zip','rar','7z','gz','webm','mkv','avi','mov','aac','ogg','flac','webp']
+    // Files that compress well with ZIP (text-based)
+    const zipFriendly = ['docx','doc','pptx','xlsx','txt','csv','html','xml','json','pdf','odt']
+
+    const isCanvasImage = canvasTypes.includes(ext) || file.type.startsWith('image/')
+
+    if (isCanvasImage) {
+      // ── Image: use canvas re-encoding (always works, real compression) ──
       setProgressMsg('Loading image...')
-      // Draw image to canvas first
       const bitmap = await createImageBitmap(file)
       const canvas = document.createElement('canvas')
-      canvas.width  = bitmap.width
+      canvas.width = bitmap.width
       canvas.height = bitmap.height
-      const ctx = canvas.getContext('2d')!
-      ctx.drawImage(bitmap, 0, 0)
+      canvas.getContext('2d')!.drawImage(bitmap, 0, 0)
       bitmap.close()
 
-      const ext = file.type === 'image/png' ? '.png' : '.jpg'
-      const fmt = file.type === 'image/png' ? 'image/png' : 'image/jpeg'
+      // Always output as JPEG for best compression (except PNG if user wants lossless)
+      const outputFmt = ext === 'png' && !compressTargetBytes ? 'image/png' : 'image/jpeg'
+      const outputExt = outputFmt === 'image/png' ? '.png' : '.jpg'
 
       if (compressTargetBytes) {
-        // Auto-compress: try qualities from high to low until fits
-        const qualities = [95, 82, 68, 55, 42, 30, 20, 12, 6, 3]
+        const qualities = [95, 82, 70, 58, 45, 33, 22, 14, 8, 4]
         let bestBlob: Blob = new Blob()
         for (const q of qualities) {
           setProgressMsg(`Trying quality ${q}%... (target: ${compressTargetValue}${compressTargetUnit})`)
           const blob = await new Promise<Blob>((res, rej) => {
-            canvas.toBlob((b) => b ? res(b) : rej(new Error('Failed')), fmt, q / 100)
+            canvas.toBlob((b) => b ? res(b) : rej(new Error('Failed')), 'image/jpeg', q / 100)
           })
           bestBlob = blob
           if (blob.size <= compressTargetBytes) break
         }
-        return { blob: bestBlob, name: file.name.replace(/\.[^.]+$/, '') + '_compressed' + ext }
+        return { blob: bestBlob, name: file.name.replace(/\.[^.]+$/, '') + '_compressed.jpg' }
       } else {
-        // Use ZIP level to pick quality for images
-        const qualityMap = [95, 82, 65, 50, 35, 20]
-        const q = qualityMap[selectedQualityIdx] ?? 65
-        setProgressMsg(`Compressing at quality ${q}%...`)
+        const q = 65
+        setProgressMsg(`Compressing image at quality ${q}%...`)
         const blob = await new Promise<Blob>((res, rej) => {
-          canvas.toBlob((b) => b ? res(b) : rej(new Error('Failed')), fmt, q / 100)
+          canvas.toBlob((b) => b ? res(b) : rej(new Error('Failed')), outputFmt, q / 100)
         })
-        return { blob, name: file.name.replace(/\.[^.]+$/, '') + '_compressed' + ext }
+        return { blob, name: file.name.replace(/\.[^.]+$/, '') + '_compressed' + outputExt }
       }
     } else {
-      setProgressMsg('Compressing file into ZIP...')
+      // ── Non-image: ZIP compression ──
+      setProgressMsg('Compressing file...')
       await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js')
       await waitForGlobal('JSZip')
-      const zipLevel = ZIP_LEVELS[selectedQualityIdx]?.zipLevel ?? 6
+
+      const isAlreadyCompressed = alreadyCompressed.includes(ext)
+      // Use max compression for zip-friendly files, store-only for already-compressed
+      const zipLevel = isAlreadyCompressed ? 1 : (ZIP_LEVELS[selectedQualityIdx]?.zipLevel ?? 6)
+
       const arrayBuffer = await file.arrayBuffer()
       const zip = new (window as any).JSZip()
       zip.file(file.name, new Uint8Array(arrayBuffer), { binary: true })
-      const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: zipLevel } })
+      const blob = await zip.generateAsync({
+        type: 'blob',
+        compression: isAlreadyCompressed ? 'STORE' : 'DEFLATE',
+        compressionOptions: { level: zipLevel }
+      })
+
+      // Warn user if already-compressed file barely shrank
+      if (isAlreadyCompressed && blob.size > file.size * 0.95) {
+        setDocInfo(`⚠️ This file type (${ext.toUpperCase()}) is already compressed and cannot be reduced further with ZIP. Try converting it to a different format instead.`)
+      }
+
       return { blob, name: file.name.replace(/\.[^.]+$/, '') + '_compressed.zip' }
     }
   }
@@ -643,32 +664,6 @@ export default function ConverterPage() {
                 </div>
               )}
 
-              {/* KB target */}
-              <div className="mt-4 p-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Target className="w-4 h-4 text-emerald-500" />
-                  <p className="text-sm font-bold text-foreground">Target File Size <span className="text-muted-foreground font-normal">(optional)</span></p>
-                </div>
-                <p className="text-xs text-muted-foreground">Enter max KB for the PDF. Converter auto-reduces quality to fit.</p>
-                <div className="flex items-center gap-3">
-                  <div className="relative flex-1">
-                    <input type="number" min="10" placeholder="e.g. 500"
-                      value={targetKB} onChange={(e) => setTargetKB(e.target.value)}
-                      className="w-full px-4 py-3 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/50 pr-16"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-emerald-500">KB</span>
-                  </div>
-                  {targetKB && <button onClick={() => setTargetKB('')} className="p-3 rounded-xl border border-border/60 text-muted-foreground hover:text-red-400 transition-all"><X className="w-4 h-4" /></button>}
-                </div>
-                <div className="flex gap-2 flex-wrap">
-                  {['100','200','500','1000','2000'].map(kb => (
-                    <button key={kb} onClick={() => setTargetKB(kb)}
-                      className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${targetKB === kb ? 'bg-emerald-500 text-white border-emerald-500' : 'border-border/60 text-muted-foreground hover:border-emerald-500/30'}`}>
-                      {parseInt(kb) >= 1000 ? `${parseInt(kb)/1000}MB` : `${kb}KB`}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -795,6 +790,66 @@ export default function ConverterPage() {
             Choose a different file
           </button>
         )}
+
+        {/* ── PDF target size — shown after file is uploaded ── */}
+        <AnimatePresence>
+          {isToPdf && file && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+              className="mb-4"
+            >
+              <div className="p-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Target className="w-4 h-4 text-emerald-500" />
+                  <p className="text-sm font-bold text-foreground">
+                    Target File Size
+                    <span className="text-muted-foreground font-normal ml-1">(optional)</span>
+                  </p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Enter the max KB you need the PDF to be. The converter will automatically reduce quality until it fits.
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="relative flex-1">
+                    <input
+                      type="number" min="10" placeholder="e.g. 500"
+                      value={targetKB}
+                      onChange={(e) => setTargetKB(e.target.value)}
+                      className="w-full px-4 py-3 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/50 pr-16"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-emerald-500">KB</span>
+                  </div>
+                  {targetKB && (
+                    <button onClick={() => setTargetKB('')} className="p-3 rounded-xl border border-border/60 text-muted-foreground hover:text-red-400 transition-all">
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {['100','200','500','1000','2000'].map(kb => (
+                    <button key={kb} onClick={() => setTargetKB(kb)}
+                      className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${
+                        targetKB === kb
+                          ? 'bg-emerald-500 text-white border-emerald-500'
+                          : 'border-border/60 text-muted-foreground hover:border-emerald-500/30'
+                      }`}>
+                      {parseInt(kb) >= 1000 ? `${parseInt(kb)/1000}MB` : `${kb}KB`}
+                    </button>
+                  ))}
+                </div>
+                {targetKB && (
+                  <p className="text-xs text-emerald-400">
+                    ✅ PDF will be compressed to fit within <span className="font-bold">{targetKB} KB</span>
+                    {parseInt(targetKB) >= 1000 && <span> ({(parseInt(targetKB)/1024).toFixed(1)} MB)</span>}
+                  </p>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
 
         {/* ── COMPRESS settings (shown after file upload) ── */}
