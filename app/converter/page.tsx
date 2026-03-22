@@ -64,17 +64,62 @@ function getQualityPrediction(fileSizeBytes: number, targetVal: string, unit: 'K
 }
 
 // Custom convert supported pairs
-const CUSTOM_FROM_FORMATS = ['PDF', 'DOCX', 'TXT', 'JPG', 'PNG', 'WebP', 'BMP', 'CSV', 'HTML']
+// ── All FROM formats grouped by category ──
+const CUSTOM_FROM_FORMATS = [
+  // Documents
+  { label: 'PDF (.pdf)',              value: 'PDF',  accept: '.pdf',       group: 'Documents' },
+  { label: 'Word 2007+ (.docx)',      value: 'DOCX', accept: '.docx',      group: 'Documents' },
+  { label: 'Word Legacy (.doc)',      value: 'DOC',  accept: '.doc',       group: 'Documents' },
+  { label: 'Rich Text (.rtf)',        value: 'RTF',  accept: '.rtf',       group: 'Documents' },
+  { label: 'Text (.txt)',             value: 'TXT',  accept: '.txt',       group: 'Documents' },
+  { label: 'Markdown (.md)',          value: 'MD',   accept: '.md',        group: 'Documents' },
+  { label: 'HTML (.html)',            value: 'HTML', accept: '.html,.htm', group: 'Documents' },
+  { label: 'XML (.xml)',              value: 'XML',  accept: '.xml',       group: 'Documents' },
+  // Spreadsheets
+  { label: 'Excel 2007+ (.xlsx)',     value: 'XLSX', accept: '.xlsx',      group: 'Spreadsheets' },
+  { label: 'Excel Legacy (.xls)',     value: 'XLS',  accept: '.xls',       group: 'Spreadsheets' },
+  { label: 'CSV (.csv)',              value: 'CSV',  accept: '.csv',       group: 'Spreadsheets' },
+  { label: 'TSV (.tsv)',              value: 'TSV',  accept: '.tsv',       group: 'Spreadsheets' },
+  // Presentations
+  { label: 'PowerPoint 2007+ (.pptx)',value: 'PPTX', accept: '.pptx',     group: 'Presentations' },
+  { label: 'PowerPoint Legacy (.ppt)',value: 'PPT',  accept: '.ppt',       group: 'Presentations' },
+  // Images
+  { label: 'JPEG (.jpg)',             value: 'JPG',  accept: '.jpg,.jpeg', group: 'Images' },
+  { label: 'PNG (.png)',              value: 'PNG',  accept: '.png',       group: 'Images' },
+  { label: 'WebP (.webp)',            value: 'WebP', accept: '.webp',      group: 'Images' },
+  { label: 'BMP (.bmp)',              value: 'BMP',  accept: '.bmp',       group: 'Images' },
+  { label: 'GIF (.gif)',              value: 'GIF',  accept: '.gif',       group: 'Images' },
+  { label: 'TIFF (.tiff)',            value: 'TIFF', accept: '.tiff,.tif', group: 'Images' },
+  { label: 'SVG (.svg)',              value: 'SVG',  accept: '.svg',       group: 'Images' },
+]
+
+// ── TO formats per FROM type ──
 const CUSTOM_TO_FORMATS: Record<string, string[]> = {
-  'PDF':  ['TXT', 'Images (PNG ZIP)'],
-  'DOCX': ['PDF', 'TXT'],
-  'TXT':  ['PDF'],
-  'JPG':  ['PDF', 'PNG', 'WebP'],
-  'PNG':  ['PDF', 'JPG', 'WebP'],
-  'WebP': ['PDF', 'JPG', 'PNG'],
-  'BMP':  ['PDF', 'JPG', 'PNG'],
-  'CSV':  ['PDF', 'TXT'],
-  'HTML': ['PDF', 'TXT'],
+  // Documents
+  'PDF':  ['DOCX (.docx)', 'TXT (.txt)', 'HTML (.html)', 'JPG — pages as images (.zip)', 'PNG — pages as images (.zip)'],
+  'DOCX': ['PDF (.pdf)', 'TXT (.txt)', 'HTML (.html)', 'RTF (.rtf)'],
+  'DOC':  ['PDF (.pdf)', 'DOCX (.docx)', 'TXT (.txt)', 'HTML (.html)'],
+  'RTF':  ['PDF (.pdf)', 'DOCX (.docx)', 'TXT (.txt)'],
+  'TXT':  ['PDF (.pdf)', 'DOCX (.docx)', 'HTML (.html)'],
+  'MD':   ['PDF (.pdf)', 'TXT (.txt)', 'HTML (.html)', 'DOCX (.docx)'],
+  'HTML': ['PDF (.pdf)', 'DOCX (.docx)', 'TXT (.txt)'],
+  'XML':  ['TXT (.txt)', 'HTML (.html)'],
+  // Spreadsheets
+  'XLSX': ['PDF (.pdf)', 'CSV (.csv)', 'TXT (.txt)', 'HTML (.html)'],
+  'XLS':  ['PDF (.pdf)', 'CSV (.csv)', 'TXT (.txt)'],
+  'CSV':  ['PDF (.pdf)', 'XLSX (.xlsx)', 'TXT (.txt)', 'HTML (.html)'],
+  'TSV':  ['PDF (.pdf)', 'CSV (.csv)', 'XLSX (.xlsx)', 'TXT (.txt)'],
+  // Presentations
+  'PPTX': ['PDF (.pdf)', 'TXT (.txt)', 'HTML (.html)'],
+  'PPT':  ['PDF (.pdf)', 'TXT (.txt)'],
+  // Images
+  'JPG':  ['PDF (.pdf)', 'PNG (.png)', 'WebP (.webp)', 'BMP (.bmp)', 'GIF (.gif)', 'TIFF (.tiff)'],
+  'PNG':  ['PDF (.pdf)', 'JPG (.jpg)', 'WebP (.webp)', 'BMP (.bmp)', 'GIF (.gif)', 'TIFF (.tiff)'],
+  'WebP': ['PDF (.pdf)', 'JPG (.jpg)', 'PNG (.png)', 'BMP (.bmp)', 'GIF (.gif)'],
+  'BMP':  ['PDF (.pdf)', 'JPG (.jpg)', 'PNG (.png)', 'WebP (.webp)'],
+  'GIF':  ['PDF (.pdf)', 'JPG (.jpg)', 'PNG (.png)', 'WebP (.webp)'],
+  'TIFF': ['PDF (.pdf)', 'JPG (.jpg)', 'PNG (.png)', 'WebP (.webp)'],
+  'SVG':  ['PDF (.pdf)', 'PNG (.png)', 'JPG (.jpg)'],
 }
 
 type Status = 'idle' | 'processing' | 'done' | 'error'
@@ -204,12 +249,8 @@ export default function ConverterPage() {
     if (activeGroup === 'compress') return '*'
     if (activeGroup === 'to-pdf')   return toPdfTool.accept
     if (convertTool.id === 'custom-convert') {
-      const map: Record<string, string> = {
-        'PDF': '.pdf', 'DOCX': '.docx,.doc', 'TXT': '.txt',
-        'JPG': '.jpg,.jpeg', 'PNG': '.png', 'WebP': '.webp',
-        'BMP': '.bmp', 'CSV': '.csv', 'HTML': '.html,.htm',
-      }
-      return map[customFrom] || '*'
+      const fmt = CUSTOM_FROM_FORMATS.find(f => f.value === customFrom)
+      return fmt?.accept || '*'
     }
     return convertTool.accept
   }
@@ -518,42 +559,234 @@ export default function ConverterPage() {
     })
   }
 
+  // ── Helper: extract text from any document ──
+  const extractTextFrom = async (file: File, from: string): Promise<string> => {
+    if (['TXT','MD','RTF','XML'].includes(from)) return await file.text()
+    if (['CSV','TSV'].includes(from)) {
+      const raw = await file.text()
+      const sep = from === 'TSV' ? '\t' : ','
+      return raw.split('\n').map(r => r.split(sep).map(c => c.replace(/^"|"$/g, '').trim()).join('  |  ')).join('\n')
+    }
+    if (from === 'HTML') {
+      const html = await file.text()
+      const tmp = document.createElement('div'); tmp.innerHTML = html
+      tmp.querySelectorAll('script,style').forEach(el => el.remove())
+      return tmp.innerText || tmp.textContent || ''
+    }
+    if (['DOCX','DOC'].includes(from)) {
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js')
+      await waitForGlobal('mammoth')
+      const result = await (window as any).mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() })
+      return result.value || ''
+    }
+    if (['XLSX','XLS'].includes(from)) {
+      // Read as binary and extract what we can
+      const raw = await file.text()
+      // Basic: just return raw stripped content
+      return raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+    }
+    if (['PPTX','PPT'].includes(from)) {
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js')
+      await waitForGlobal('mammoth')
+      try {
+        const result = await (window as any).mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() })
+        return result.value || ''
+      } catch {
+        return 'Could not extract text from this presentation file.'
+      }
+    }
+    if (from === 'PDF') {
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js')
+      await waitForGlobal('pdfjsLib')
+      const pdfjsLib = (window as any).pdfjsLib
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+      const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise
+      let text = ''
+      for (let i = 1; i <= pdf.numPages; i++) {
+        setProgressMsg(`Reading page ${i} of ${pdf.numPages}...`)
+        const page = await pdf.getPage(i)
+        const content = await page.getTextContent()
+        text += `\n--- Page ${i} ---\n` + content.items.map((item: any) => item.str).join(' ') + '\n'
+      }
+      return text
+    }
+    return ''
+  }
+
   // ── Custom convert handler ──
   const doCustomConvert = async (file: File) => {
     const from = customFrom, to = customTo
     setProgressMsg(`Converting ${from} → ${to}...`)
+    const baseName = file.name.replace(/\.[^.]+$/, '')
 
-    if (to === 'PDF') {
-      if (from === 'DOCX') return doDocxToPdf(file)
-      if (from === 'TXT')  return doTxtToPdf(file)
-      if (from === 'CSV')  return doCsvToPdf(file)
-      if (from === 'HTML') return doHtmlToPdf(file)
-      if (['JPG','PNG','WebP','BMP'].includes(from)) return doImgToPdf(file)
+    // Helper: strip the extension label from TO value e.g. "PDF (.pdf)" → "PDF"
+    const toKey = to.split(' ')[0].toUpperCase()
+
+    // ── → PDF ──
+    if (toKey === 'PDF') {
+      const imgFormats = ['JPG','PNG','WEBP','BMP','GIF','TIFF','SVG']
+      if (imgFormats.includes(from)) return doImgToPdf(file)
+      if (['DOCX','DOC'].includes(from)) return doDocxToPdf(file)
+      setProgressMsg(`Extracting content from ${from}...`)
+      const text = await extractTextFrom(file, from)
+      if (!text.trim()) throw new Error(`Could not extract content from this ${from} file.`)
+      const landscape = ['CSV','TSV','XLSX','XLS'].includes(from)
+      return buildTextPdf(text, baseName + '.pdf', targetBytes, landscape, setProgressMsg)
     }
-    if (to === 'TXT') {
-      if (from === 'PDF') return doPdfToTxt(file)
-      if (from === 'CSV') {
-        const text = await file.text()
-        return { blob: new Blob([text], { type: 'text/plain' }), name: file.name.replace(/\.[^.]+$/, '') + '.txt' }
-      }
-      if (from === 'HTML') {
-        const html = await file.text()
-        const tmp = document.createElement('div'); tmp.innerHTML = html
-        const text = tmp.innerText || tmp.textContent || ''
-        return { blob: new Blob([text], { type: 'text/plain' }), name: file.name.replace(/\.[^.]+$/, '') + '.txt' }
-      }
-      if (from === 'DOCX') {
+
+    // ── → TXT ──
+    if (toKey === 'TXT') {
+      setProgressMsg(`Extracting text from ${from}...`)
+      const text = await extractTextFrom(file, from)
+      return { blob: new Blob([text], { type: 'text/plain' }), name: baseName + '.txt' }
+    }
+
+    // ── → HTML ──
+    if (toKey === 'HTML') {
+      setProgressMsg(`Converting ${from} to HTML...`)
+      if (['DOCX','DOC'].includes(from)) {
         await loadScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js')
         await waitForGlobal('mammoth')
-        const result = await (window as any).mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() })
-        return { blob: new Blob([result.value || ''], { type: 'text/plain' }), name: file.name.replace(/\.[^.]+$/, '') + '.txt' }
+        const result = await (window as any).mammoth.convertToHtml({ arrayBuffer: await file.arrayBuffer() })
+        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${baseName}</title><style>body{font-family:Arial,sans-serif;max-width:800px;margin:40px auto;padding:20px;}</style></head><body>${result.value}</body></html>`
+        return { blob: new Blob([html], { type: 'text/html' }), name: baseName + '.html' }
       }
+      const text = await extractTextFrom(file, from)
+      const paragraphs = text.split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('\n')
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${baseName}</title><style>body{font-family:Arial,sans-serif;max-width:800px;margin:40px auto;padding:20px;}</style></head><body>${paragraphs}</body></html>`
+      return { blob: new Blob([html], { type: 'text/html' }), name: baseName + '.html' }
     }
-    if (to === 'Images (PNG ZIP)' && from === 'PDF') return doPdfToImg(file)
-    if (to === 'PNG'  && ['JPG','WebP','BMP'].includes(from)) return doImgConvert(file, 'image/png', '.png')
-    if (to === 'JPG'  && ['PNG','WebP','BMP'].includes(from)) return doImgConvert(file, 'image/jpeg', '.jpg')
-    if (to === 'WebP' && ['JPG','PNG','BMP'].includes(from))  return doImgConvert(file, 'image/webp', '.webp')
-    throw new Error(`${from} → ${to} conversion is not yet supported.`)
+
+    // ── → DOCX ──
+    if (toKey === 'DOCX') {
+      setProgressMsg(`Converting ${from} to DOCX...`)
+      // Extract text then build a simple DOCX using mammoth-compatible format
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
+      await waitForGlobal('jspdf')
+      const text = await extractTextFrom(file, from)
+      if (!text.trim()) throw new Error(`Could not extract text from ${from} file.`)
+      // Build a simple DOCX as an XML-based file
+      const xmlContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"
+  xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    ${text.split('\n').map(line =>
+      `<w:p><w:r><w:t xml:space="preserve">${line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</w:t></w:r></w:p>`
+    ).join('\n    ')}
+  </w:body>
+</w:document>`
+      // Wrap in a minimal DOCX zip structure
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js')
+      await waitForGlobal('JSZip')
+      const zip = new (window as any).JSZip()
+      zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`)
+      zip.file('_rels/.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`)
+      zip.file('word/document.xml', xmlContent)
+      zip.file('word/_rels/document.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+</Relationships>`)
+      const blob = await zip.generateAsync({ type: 'blob' })
+      return { blob, name: baseName + '.docx' }
+    }
+
+    // ── → RTF ──
+    if (toKey === 'RTF') {
+      setProgressMsg(`Converting ${from} to RTF...`)
+      const text = await extractTextFrom(file, from)
+      const rtf = `{\rtf1\ansi\deff0
+{\fonttbl{\f0 Arial;}}
+\f0\fs24
+${
+        text.split('\n').map(l => l.replace(/[\\{}]/g, '\\$&') + '\\par').join('\n')
+      }
+}`
+      return { blob: new Blob([rtf], { type: 'application/rtf' }), name: baseName + '.rtf' }
+    }
+
+    // ── → CSV ──
+    if (toKey === 'CSV') {
+      setProgressMsg(`Converting ${from} to CSV...`)
+      if (from === 'TSV') {
+        const text = await file.text()
+        const csv = text.split('\n').map(r => r.split('\t').map(col => `"${col}"`).join(',')).join('\n')
+        return { blob: new Blob([csv], { type: 'text/csv' }), name: baseName + '.csv' }
+      }
+      const text = await extractTextFrom(file, from)
+      return { blob: new Blob([text], { type: 'text/csv' }), name: baseName + '.csv' }
+    }
+
+    // ── → XLSX ──
+    if (toKey === 'XLSX') {
+      setProgressMsg(`Converting ${from} to XLSX...`)
+      const text = await extractTextFrom(file, from)
+      // Build minimal XLSX
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js')
+      await waitForGlobal('JSZip')
+      const rows = text.split('\n').filter(r => r.trim())
+      const sharedStrings = rows.flatMap(r => r.split(',').map(c => c.trim()))
+      const uniqueStrings = [...new Set(sharedStrings)]
+      const getIdx = (s: string) => uniqueStrings.indexOf(s)
+      const sharedStrXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="${sharedStrings.length}" uniqueCount="${uniqueStrings.length}">
+${uniqueStrings.map(s => `<si><t>${s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</t></si>`).join('')}
+</sst>`
+      const rowsXml = rows.map((r, ri) => {
+        const cells = r.split(',').map((cell, ci) => {
+          const col = String.fromCharCode(65 + ci)
+          return `<c r="${col}${ri+1}" t="s"><v>${getIdx(cell.trim())}</v></c>`
+        }).join('')
+        return `<row r="${ri+1}">${cells}</row>`
+      }).join('')
+      const sheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<sheetData>${rowsXml}</sheetData></worksheet>`
+      const zip = new (window as any).JSZip()
+      zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>
+</Types>`)
+      zip.file('_rels/.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`)
+      zip.file('xl/workbook.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>`)
+      zip.file('xl/_rels/workbook.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>
+</Relationships>`)
+      zip.file('xl/worksheets/sheet1.xml', sheetXml)
+      zip.file('xl/sharedStrings.xml', sharedStrXml)
+      const blob = await zip.generateAsync({ type: 'blob' })
+      return { blob, name: baseName + '.xlsx' }
+    }
+
+    // ── → Image formats ──
+    if (to.includes('pages as images')) {
+      if (from === 'PDF') return doPdfToImg(file)
+    }
+    if (toKey === 'JPG')  return doImgConvert(file, 'image/jpeg', '.jpg')
+    if (toKey === 'PNG')  return doImgConvert(file, 'image/png',  '.png')
+    if (toKey === 'WEBP') return doImgConvert(file, 'image/webp', '.webp')
+    if (toKey === 'BMP')  return doImgConvert(file, 'image/bmp',  '.bmp')
+    if (toKey === 'GIF')  return doImgConvert(file, 'image/gif',  '.gif')
+    if (toKey === 'TIFF') return doImgConvert(file, 'image/tiff', '.tiff')
+
+    throw new Error(`${from} → ${to} is not supported yet. Try a different combination.`)
   }
 
   // ── Main run ──
@@ -705,7 +938,16 @@ export default function ConverterPage() {
                         }}
                         className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-violet-500/50 text-sm font-semibold"
                       >
-                        {CUSTOM_FROM_FORMATS.map(f => <option key={f} value={f}>{f}</option>)}
+                        {(() => {
+                          const groups = [...new Set(CUSTOM_FROM_FORMATS.map(f => f.group))]
+                          return groups.map(group => (
+                            <optgroup key={group} label={`── ${group} ──`}>
+                              {CUSTOM_FROM_FORMATS.filter(f => f.group === group).map(f => (
+                                <option key={f.value} value={f.value}>{f.label}</option>
+                              ))}
+                            </optgroup>
+                          ))
+                        })()}
                       </select>
                     </div>
 
@@ -726,13 +968,19 @@ export default function ConverterPage() {
                     </div>
                   </div>
 
-                  {customFrom && customTo && (
-                    <p className="text-xs text-violet-400">
-                      Will convert: <span className="font-bold">{customFrom}</span> → <span className="font-bold">{customTo}</span>
-                      {' · '}
-                      <span className="text-muted-foreground">Upload a .{customFrom.toLowerCase()} file below</span>
-                    </p>
-                  )}
+                  {customFrom && customTo && (() => {
+                    const fmt = CUSTOM_FROM_FORMATS.find(f => f.value === customFrom)
+                    return (
+                      <div className="p-3 rounded-xl bg-violet-500/10 border border-violet-500/20 space-y-1">
+                        <p className="text-xs font-bold text-violet-400">
+                          {fmt?.label} → {customTo}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Upload a <span className="font-semibold text-violet-300">{fmt?.accept}</span> file in the drop zone below
+                        </p>
+                      </div>
+                    )
+                  })()}
                 </motion.div>
               )}
             </motion.div>
