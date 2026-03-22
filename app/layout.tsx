@@ -18,6 +18,10 @@ export const metadata: Metadata = {
     shortcut: '/favicon.png',
     apple: '/favicon.png',
   },
+  // ── AdSense verification meta tag ──
+  other: {
+    'google-adsense-account': 'ca-pub-6727162627172885',
+  },
   openGraph: {
     title: 'VAF UBWENGE TECH',
     description: 'Intelligence Systems & AI Research Lab based in Rwanda.',
@@ -50,12 +54,14 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* ── Google AdSense ── */}
-        <Script
+        {/* ── AdSense verification meta tag ── */}
+        <meta name="google-adsense-account" content="ca-pub-6727162627172885" />
+
+        {/* ── Google AdSense script ── */}
+        <script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6727162627172885"
           crossOrigin="anonymous"
-          strategy="afterInteractive"
         />
 
         {/* ── Google Analytics 4 (G-RE59R799HT) ── */}
