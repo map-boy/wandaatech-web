@@ -1,6 +1,7 @@
 import { MarqueeBar } from '@/components/marquee-bar'
 import { Header } from '@/components/header'
 import { Hero } from '@/components/hero'
+import { ConverterBanner } from '@/components/converter-banner'
 import { About } from '@/components/about'
 import { Project } from '@/components/project'
 import { Team } from '@/components/team'
@@ -15,6 +16,7 @@ export default function Home() {
 
       <main>
         <Hero />
+        <ConverterBanner />
         <About id="about" />
         <Project id="project" />
         <Team id="team" />

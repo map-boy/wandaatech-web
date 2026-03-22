@@ -4,13 +4,14 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Menu, X, Home, Info, Briefcase, Users, 
-  Mail, ChevronRight, Sun, Moon, Zap, Microscope
+  Mail, ChevronRight, Sun, Moon, Zap, Microscope, FileType
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTheme } from 'next-themes'
 
 const navItems = [
   { name: 'Home',             href: '/',            icon: Home },
+  { name: 'Converter',        href: '/converter',   icon: FileType },
   { name: 'About',            href: '/#about',      icon: Info },
   { name: 'Projects',         href: '/projects',    icon: Briefcase },
   { name: 'QR Engine',        href: '/qr-engine',   icon: Zap },
@@ -97,13 +98,33 @@ export function Header() {
                       key={item.name} 
                       href={item.href}
                       onClick={() => setIsOpen(false)}
-                      className="flex items-center justify-between group px-4 py-4 rounded-xl hover:bg-emerald-500/10 transition-all border border-transparent hover:border-emerald-500/20"
+                      className={`flex items-center justify-between group px-4 py-4 rounded-xl transition-all border ${
+                        item.name === 'Converter'
+                          ? 'border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20'
+                          : 'border-transparent hover:bg-emerald-500/10 hover:border-emerald-500/20'
+                      }`}
                     >
                       <div className="flex items-center gap-4">
-                        <item.icon size={20} className="text-slate-400 group-hover:text-emerald-500 transition-colors" />
-                        <span className="text-sm font-bold text-slate-700 dark:text-slate-300 group-hover:text-emerald-500 uppercase tracking-tight">
+                        <item.icon 
+                          size={20} 
+                          className={`transition-colors ${
+                            item.name === 'Converter' 
+                              ? 'text-emerald-500' 
+                              : 'text-slate-400 group-hover:text-emerald-500'
+                          }`} 
+                        />
+                        <span className={`text-sm font-bold uppercase tracking-tight transition-colors ${
+                          item.name === 'Converter'
+                            ? 'text-emerald-500'
+                            : 'text-slate-700 dark:text-slate-300 group-hover:text-emerald-500'
+                        }`}>
                           {item.name}
                         </span>
+                        {item.name === 'Converter' && (
+                          <span className="text-[9px] font-black bg-emerald-500 text-white px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                            New
+                          </span>
+                        )}
                       </div>
                       <ChevronRight size={14} className="text-slate-600 group-hover:text-emerald-500 opacity-0 group-hover:opacity-100 transition-all" />
                     </Link>

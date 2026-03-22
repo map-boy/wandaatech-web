@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     shortcut: '/favicon.png',
     apple: '/favicon.png',
   },
-  // ── AdSense verification meta tag ──
+  // ── AdSense + Search Console verification ──
   other: {
     'google-adsense-account': 'ca-pub-6727162627172885',
   },
@@ -46,6 +46,25 @@ export const metadata: Metadata = {
   },
 }
 
+// ── Schema Markup as a constant (avoids hydration mismatch) ──
+const schemaOrg = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "VAF UBWENGE TECH",
+  "url": "https://vaf-ubwenge-tech.vercel.app",
+  "logo": "https://vaf-ubwenge-tech.vercel.app/vaf-logo.png",
+  "description": "Student-led AI and logistics startup in Kigali, Rwanda building Easy GO and the Intelligence Lab.",
+  "foundingLocation": {
+    "@type": "Place",
+    "name": "Kigali, Rwanda"
+  },
+  "contactPoint": {
+    "@type": "ContactPoint",
+    "contactType": "customer support",
+    "email": "support@wandaatech.rw"
+  }
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -64,42 +83,11 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
 
-        {/* ── Google Analytics 4 (G-RE59R799HT) ── */}
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-RE59R799HT"
-          strategy="afterInteractive"
-        />
-        <Script id="google-analytics" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'G-RE59R799HT');
-          `}
-        </Script>
-
         {/* ── Schema Markup — Organization (JSON-LD) ── */}
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "Organization",
-              "name": "VAF UBWENGE TECH",
-              "url": "https://vaf-ubwenge-tech.vercel.app",
-              "logo": "https://vaf-ubwenge-tech.vercel.app/vaf-logo.png",
-              "description": "Student-led AI and logistics startup in Kigali, Rwanda building Easy GO and the Intelligence Lab.",
-              "foundingLocation": {
-                "@type": "Place",
-                "name": "Kigali, Rwanda"
-              },
-              "contactPoint": {
-                "@type": "ContactPoint",
-                "contactType": "customer support",
-                "email": "support@wandaatech.rw"
-              }
-            })
-          }}
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaOrg) }}
         />
       </head>
 
@@ -112,6 +100,21 @@ export default function RootLayout({
         >
           {children}
           <Analytics />
+
+          {/* ── Google Analytics 4 (G-RE59R799HT) ── */}
+          <Script
+            src="https://www.googletagmanager.com/gtag/js?id=G-RE59R799HT"
+            strategy="afterInteractive"
+          />
+          <Script id="google-analytics" strategy="afterInteractive">
+            {`
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-RE59R799HT');
+            `}
+          </Script>
+
           <CookieBanner />
         </ThemeProvider>
       </body>
