@@ -5,19 +5,25 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import {
   ArrowLeft, Upload, Download, FileText,
-  RefreshCw, X, CheckCircle, AlertCircle, Target
+  RefreshCw, X, CheckCircle, AlertCircle, Target, ArrowRight
 } from 'lucide-react'
 
-const TOOLS = [
-  { id: 'docx-to-pdf', icon: '📝', label: 'DOCX → PDF', desc: 'Word document to PDF (text, images, mixed)', tag: 'Most used', tagColor: 'emerald', accept: '.docx,.doc', group: 'to-pdf' },
-  { id: 'txt-to-pdf',  icon: '📃', label: 'TXT → PDF',  desc: 'Plain text to PDF', tag: '', tagColor: '', accept: '.txt', group: 'to-pdf' },
-  { id: 'img-to-pdf',  icon: '🖼️', label: 'Image → PDF', desc: 'JPG, PNG, WebP to PDF', tag: 'Popular', tagColor: 'sky', accept: '.jpg,.jpeg,.png,.webp,.bmp', group: 'to-pdf' },
-  { id: 'csv-to-pdf',  icon: '📊', label: 'CSV → PDF',  desc: 'Spreadsheet data to PDF', tag: '', tagColor: '', accept: '.csv', group: 'to-pdf' },
-  { id: 'html-to-pdf', icon: '🌐', label: 'HTML → PDF', desc: 'Web page file to PDF', tag: '', tagColor: '', accept: '.html,.htm', group: 'to-pdf' },
-  { id: 'compress-any',icon: '📦', label: 'Compress Any File', desc: 'PDF, DOCX, TXT, images — any file', tag: 'Universal', tagColor: 'amber', accept: '*', group: 'compress' },
-  { id: 'img-to-jpg',  icon: '📸', label: 'Image → JPEG', desc: 'Convert any image to JPEG', tag: '', tagColor: '', accept: '.png,.webp,.bmp,.gif', group: 'convert' },
-  { id: 'img-to-png',  icon: '🖼️', label: 'Image → PNG',  desc: 'Convert any image to PNG', tag: '', tagColor: '', accept: '.jpg,.jpeg,.webp,.bmp', group: 'convert' },
-  { id: 'pdf-to-img',  icon: '📄', label: 'PDF → Images', desc: 'Extract PDF pages as PNG', tag: '', tagColor: '', accept: '.pdf', group: 'convert' },
+// ── TO-PDF tools ──
+const TO_PDF_TOOLS = [
+  { id: 'docx-to-pdf', icon: '📝', label: 'DOCX → PDF', desc: 'Word document to PDF (text, images, mixed)', tag: 'Most used', tagColor: 'emerald', accept: '.docx,.doc' },
+  { id: 'txt-to-pdf',  icon: '📃', label: 'TXT → PDF',  desc: 'Plain text to PDF', tag: '', tagColor: '', accept: '.txt' },
+  { id: 'img-to-pdf',  icon: '🖼️', label: 'Image → PDF', desc: 'JPG, PNG, WebP to PDF', tag: 'Popular', tagColor: 'sky', accept: '.jpg,.jpeg,.png,.webp,.bmp' },
+  { id: 'csv-to-pdf',  icon: '📊', label: 'CSV → PDF',  desc: 'Spreadsheet data to PDF', tag: '', tagColor: '', accept: '.csv' },
+  { id: 'html-to-pdf', icon: '🌐', label: 'HTML → PDF', desc: 'Web page file to PDF', tag: '', tagColor: '', accept: '.html,.htm' },
+]
+
+// ── CONVERT tools (fixed pairs + custom) ──
+const CONVERT_TOOLS = [
+  { id: 'img-to-jpg',    icon: '📸', label: 'Image → JPEG', desc: 'Convert any image to JPEG', tag: '', tagColor: '', accept: '.png,.webp,.bmp,.gif' },
+  { id: 'img-to-png',    icon: '🖼️', label: 'Image → PNG',  desc: 'Convert any image to PNG',  tag: '', tagColor: '', accept: '.jpg,.jpeg,.webp,.bmp' },
+  { id: 'pdf-to-img',    icon: '📄', label: 'PDF → Images', desc: 'Extract PDF pages as PNG',   tag: '', tagColor: '', accept: '.pdf' },
+  { id: 'pdf-to-txt',    icon: '📄', label: 'PDF → TXT',    desc: 'Extract text from PDF',      tag: '', tagColor: '', accept: '.pdf' },
+  { id: 'custom-convert',icon: '⚙️', label: 'Custom Convert', desc: 'You choose: from any format to any format', tag: 'Flexible', tagColor: 'violet', accept: '*' },
 ]
 
 const GROUPS = [
@@ -30,15 +36,46 @@ const TAG_STYLES: Record<string, string> = {
   emerald: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
   sky:     'bg-sky-500/10 text-sky-400 border border-sky-500/20',
   amber:   'bg-amber-500/10 text-amber-400 border border-amber-500/20',
+  violet:  'bg-violet-500/10 text-violet-400 border border-violet-500/20',
 }
 
-const COMPRESS_LEVELS = [
-  { label: 'Maximum', subLabel: 'Smallest file',  quality: 20, zipLevel: 9 },
-  { label: 'High',    subLabel: 'Good for email', quality: 40, zipLevel: 7 },
-  { label: 'Balanced',subLabel: 'Recommended',    quality: 65, zipLevel: 6 },
-  { label: 'Light',   subLabel: 'Near-original',  quality: 82, zipLevel: 4 },
-  { label: 'Minimal', subLabel: 'Best quality',   quality: 92, zipLevel: 1 },
+// ZIP compression levels for non-image files
+const ZIP_LEVELS = [
+  { label: 'Best quality',  comment: 'Barely compressed — original quality', zipLevel: 1 },
+  { label: 'Near original', comment: 'Very slight compression',               zipLevel: 3 },
+  { label: 'Recommended',   comment: 'Best balance — good for most files',    zipLevel: 6 },
+  { label: 'Bad quality',   comment: 'Aggressive compression',                zipLevel: 7 },
+  { label: 'Worse quality', comment: 'Heavy — noticeably compressed',          zipLevel: 8 },
+  { label: 'Worst quality', comment: 'Maximum — smallest possible',            zipLevel: 9 },
 ]
+
+// Live quality prediction for images based on target size vs original
+function getQualityPrediction(fileSizeBytes: number, targetVal: string, unit: 'KB' | 'MB') {
+  if (!targetVal || !fileSizeBytes) return null
+  const targetBytes = parseFloat(targetVal) * (unit === 'MB' ? 1024 * 1024 : 1024)
+  const ratio = targetBytes / fileSizeBytes
+  if (ratio >= 0.9)  return { label: 'Best quality',  emoji: '🟢', color: 'text-emerald-400', detail: 'Almost no visible difference — very close to original' }
+  if (ratio >= 0.7)  return { label: 'Near original', emoji: '🟢', color: 'text-emerald-400', detail: 'Barely noticeable reduction — great for printing and email' }
+  if (ratio >= 0.5)  return { label: 'Good quality',  emoji: '🟡', color: 'text-yellow-400',  detail: 'Slight quality loss — perfectly fine for screen viewing' }
+  if (ratio >= 0.3)  return { label: 'Acceptable',    emoji: '🟡', color: 'text-yellow-400',  detail: 'Noticeable compression — readable but not ideal for printing' }
+  if (ratio >= 0.15) return { label: 'Bad quality',   emoji: '🟠', color: 'text-orange-400',  detail: 'Heavy compression — image will look blurry' }
+  if (ratio >= 0.07) return { label: 'Worse quality', emoji: '🔴', color: 'text-red-400',     detail: 'Very poor quality — barely usable, very small file size' }
+  return               { label: 'Worst quality',       emoji: '🔴', color: 'text-red-400',     detail: 'Extreme compression — image will be nearly unrecognizable' }
+}
+
+// Custom convert supported pairs
+const CUSTOM_FROM_FORMATS = ['PDF', 'DOCX', 'TXT', 'JPG', 'PNG', 'WebP', 'BMP', 'CSV', 'HTML']
+const CUSTOM_TO_FORMATS: Record<string, string[]> = {
+  'PDF':  ['TXT', 'Images (PNG ZIP)'],
+  'DOCX': ['PDF', 'TXT'],
+  'TXT':  ['PDF'],
+  'JPG':  ['PDF', 'PNG', 'WebP'],
+  'PNG':  ['PDF', 'JPG', 'WebP'],
+  'WebP': ['PDF', 'JPG', 'PNG'],
+  'BMP':  ['PDF', 'JPG', 'PNG'],
+  'CSV':  ['PDF', 'TXT'],
+  'HTML': ['PDF', 'TXT'],
+}
 
 type Status = 'idle' | 'processing' | 'done' | 'error'
 
@@ -52,19 +89,18 @@ function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
     if (document.querySelector(`script[src="${src}"]`)) { resolve(); return }
     const s = document.createElement('script')
-    s.src = src
-    s.onload = () => resolve()
-    s.onerror = () => reject(new Error(`Failed to load library from ${src}`))
+    s.src = src; s.onload = () => resolve()
+    s.onerror = () => reject(new Error(`Failed to load ${src}`))
     document.head.appendChild(s)
   })
 }
 
-function waitForGlobal(name: string, ms = 10000): Promise<void> {
+function waitForGlobal(name: string, ms = 12000): Promise<void> {
   return new Promise((resolve, reject) => {
     const t = Date.now()
     const check = () => {
       if ((window as any)[name] !== undefined) { resolve(); return }
-      if (Date.now() - t > ms) { reject(new Error(`${name} did not load in time`)); return }
+      if (Date.now() - t > ms) { reject(new Error(`${name} did not load`)); return }
       setTimeout(check, 100)
     }
     check()
@@ -74,33 +110,27 @@ function waitForGlobal(name: string, ms = 10000): Promise<void> {
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image()
-    img.onload  = () => resolve(img)
+    img.onload = () => resolve(img)
     img.onerror = () => reject(new Error('Could not load image'))
     img.src = src
   })
 }
 
 async function buildTextPdf(
-  text: string,
-  fileName: string,
-  targetBytes: number | null,
-  landscape = false,
-  onProgress?: (msg: string) => void
+  text: string, fileName: string, targetBytes: number | null,
+  landscape = false, onProgress?: (msg: string) => void
 ): Promise<{ blob: Blob; name: string }> {
   await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
   await waitForGlobal('jspdf')
   const { jsPDF } = (window as any).jspdf
   const fontSizes = targetBytes ? [12, 10, 9, 8, 7, 6] : [12]
-
   for (const fontSize of fontSizes) {
     if (onProgress && targetBytes) onProgress(`Building PDF at font size ${fontSize}pt...`)
     const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: landscape ? 'landscape' : 'portrait' })
     pdf.setFontSize(fontSize)
-    const pageW = landscape ? 277 : 190
-    const pageH = landscape ? 190 : 277
-    const margin = 10
-    const lineH  = fontSize * 0.4 + 1.5
-    const lines  = pdf.splitTextToSize(text, pageW - margin * 2)
+    const pageW = landscape ? 277 : 190, pageH = landscape ? 190 : 277
+    const margin = 10, lineH = fontSize * 0.4 + 1.5
+    const lines = pdf.splitTextToSize(text, pageW - margin * 2)
     let y = margin + fontSize * 0.4
     for (const line of lines) {
       if (y + lineH > pageH - margin) { pdf.addPage(); y = margin + fontSize * 0.4 }
@@ -109,8 +139,6 @@ async function buildTextPdf(
     const blob: Blob = pdf.output('blob')
     if (!targetBytes || blob.size <= targetBytes) return { blob, name: fileName }
   }
-
-  // Fallback smallest
   const pdf = new jsPDF({ unit: 'mm', format: 'a4' })
   pdf.setFontSize(6)
   const lines = pdf.splitTextToSize(text, 170)
@@ -123,24 +151,39 @@ async function buildTextPdf(
 }
 
 export default function ConverterPage() {
-  const [activeGroup, setActiveGroup]     = useState('to-pdf')
-  const [tool, setTool]                   = useState(TOOLS[0])
-  const [file, setFile]                   = useState<File | null>(null)
-  const [status, setStatus]               = useState<Status>('idle')
-  const [errorMsg, setErrorMsg]           = useState('')
-  const [downloadUrl, setDownloadUrl]     = useState<string | null>(null)
-  const [downloadName, setDownloadName]   = useState('')
-  const [outputSize, setOutputSize]       = useState<number | null>(null)
-  const [compressLevel, setCompressLevel] = useState(2)
-  const [dragOver, setDragOver]           = useState(false)
-  const [targetKB, setTargetKB]           = useState<string>('')
-  const [progressMsg, setProgressMsg]     = useState('')
-  const [docInfo, setDocInfo]             = useState<string>('')
+  const [activeGroup, setActiveGroup]   = useState('to-pdf')
+  const [toPdfTool, setToPdfTool]       = useState(TO_PDF_TOOLS[0])
+  const [convertTool, setConvertTool]   = useState(CONVERT_TOOLS[0])
+  const [file, setFile]                 = useState<File | null>(null)
+  const [status, setStatus]             = useState<Status>('idle')
+  const [errorMsg, setErrorMsg]         = useState('')
+  const [downloadUrl, setDownloadUrl]   = useState<string | null>(null)
+  const [downloadName, setDownloadName] = useState('')
+  const [outputSize, setOutputSize]     = useState<number | null>(null)
+  const [dragOver, setDragOver]         = useState(false)
+  const [progressMsg, setProgressMsg]   = useState('')
+  const [docInfo, setDocInfo]           = useState('')
+
+  // ── TO-PDF settings ──
+  const [targetKB, setTargetKB]         = useState('')
+
+  // ── COMPRESS settings ──
+  const [compressTargetUnit, setCompressTargetUnit] = useState<'KB' | 'MB'>('KB')
+  const [compressTargetValue, setCompressTargetValue] = useState('')
+  const [selectedQualityIdx, setSelectedQualityIdx] = useState(2) // Recommended
+
+  // ── CUSTOM CONVERT settings ──
+  const [customFrom, setCustomFrom] = useState('PDF')
+  const [customTo, setCustomTo]     = useState('TXT')
+
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const zipLevel    = COMPRESS_LEVELS[compressLevel].zipLevel
+  const currentTool = activeGroup === 'to-pdf' ? toPdfTool : convertTool
   const targetBytes = targetKB ? parseFloat(targetKB) * 1024 : null
-  const visibleTools = TOOLS.filter(t => t.group === activeGroup)
+
+  const compressTargetBytes = compressTargetValue
+    ? parseFloat(compressTargetValue) * (compressTargetUnit === 'MB' ? 1024 * 1024 : 1024)
+    : null
 
   const reset = useCallback(() => {
     setFile(null); setStatus('idle'); setErrorMsg('')
@@ -154,19 +197,28 @@ export default function ConverterPage() {
     e.preventDefault(); setDragOver(false)
     const f = e.dataTransfer.files[0]; if (f) handleFile(f)
   }, [reset])
-  const handleGroup = (gid: string) => {
-    setActiveGroup(gid)
-    setTool(TOOLS.find(t => t.group === gid)!)
-    reset()
+  const handleGroup = (gid: string) => { setActiveGroup(gid); reset() }
+
+  // ── accept string for current tool ──
+  const getAccept = () => {
+    if (activeGroup === 'compress') return '*'
+    if (activeGroup === 'to-pdf')   return toPdfTool.accept
+    if (convertTool.id === 'custom-convert') {
+      const map: Record<string, string> = {
+        'PDF': '.pdf', 'DOCX': '.docx,.doc', 'TXT': '.txt',
+        'JPG': '.jpg,.jpeg', 'PNG': '.png', 'WebP': '.webp',
+        'BMP': '.bmp', 'CSV': '.csv', 'HTML': '.html,.htm',
+      }
+      return map[customFrom] || '*'
+    }
+    return convertTool.accept
   }
 
-  // ═══════════════════════════════════════════════════
-  // DOCX → PDF — handles TEXT + IMAGES + VIDEOS
-  // ═══════════════════════════════════════════════════
+  // ══════════════════════════════════
+  // DOCX → PDF
+  // ══════════════════════════════════
   const doDocxToPdf = async (file: File): Promise<{ blob: Blob; name: string }> => {
     setProgressMsg('Opening DOCX file...')
-
-    // Load required libraries
     await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js')
     await waitForGlobal('JSZip')
     await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
@@ -175,222 +227,126 @@ export default function ConverterPage() {
     await waitForGlobal('mammoth')
 
     const arrayBuffer = await file.arrayBuffer()
-
-    // ── Step 1: Unzip DOCX and extract images ──
     setProgressMsg('Extracting contents...')
     const zip = await (window as any).JSZip.loadAsync(arrayBuffer)
 
-    // Get all image files from word/media/
-    const IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff', 'emf', 'wmf']
-    const VIDEO_EXTS = ['mp4', 'avi', 'mov', 'wmv', 'mkv', 'webm', 'flv']
+    const IMAGE_EXTS = ['jpg','jpeg','png','gif','bmp','webp']
+    const VIDEO_EXTS = ['mp4','avi','mov','wmv','mkv','webm','flv']
+    const mediaFiles = Object.keys(zip.files).filter(f => f.startsWith('word/media/') && !zip.files[f].dir)
+    const imageFiles = mediaFiles.filter(f => IMAGE_EXTS.includes(f.split('.').pop()?.toLowerCase() || ''))
+    const videoFiles = mediaFiles.filter(f => VIDEO_EXTS.includes(f.split('.').pop()?.toLowerCase() || ''))
 
-    const mediaFiles = Object.keys(zip.files).filter(
-      f => f.startsWith('word/media/') && !zip.files[f].dir
-    )
-
-    const imageFiles: string[] = []
-    const videoFiles: string[] = []
-
-    for (const mf of mediaFiles) {
-      const ext = mf.split('.').pop()?.toLowerCase() || ''
-      if (IMAGE_EXTS.includes(ext)) imageFiles.push(mf)
-      else if (VIDEO_EXTS.includes(ext)) videoFiles.push(mf)
-    }
-
-    setProgressMsg(`Found: ${imageFiles.length} image(s), ${videoFiles.length} video(s)`)
-
-    // ── Step 2: Extract text ──
     let docText = ''
     try {
       const result = await (window as any).mammoth.extractRawText({ arrayBuffer })
       docText = (result.value || '').trim()
-    } catch { /* continue even if text extraction fails */ }
+    } catch { /* continue */ }
 
     const hasImages = imageFiles.length > 0
     const hasText   = docText.length > 5
     const hasVideos = videoFiles.length > 0
 
-    // Build info string for user
     const parts = []
-    if (hasText)   parts.push(`${docText.length} characters of text`)
+    if (hasText)   parts.push(`${docText.length} characters`)
     if (hasImages) parts.push(`${imageFiles.length} image(s)`)
-    if (hasVideos) parts.push(`${videoFiles.length} video(s) — note added in PDF`)
+    if (hasVideos) parts.push(`${videoFiles.length} video(s) — note added`)
     setDocInfo(parts.join(' · '))
 
-    if (!hasText && !hasImages) {
-      throw new Error('This document appears empty or uses a format that cannot be read. Try saving it as .docx from Word first.')
-    }
+    if (!hasText && !hasImages) throw new Error('Document appears empty or unreadable. Try resaving as .docx from Word.')
 
     const { jsPDF } = (window as any).jspdf
+    const MIME: Record<string, string> = { jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',gif:'image/gif',bmp:'image/bmp',webp:'image/webp' }
 
-    // ── Step 3: Build PDF based on content type ──
-
-    // IMAGE-BASED or MIXED document
     if (hasImages) {
-      setProgressMsg('Building PDF with images...')
-
-      // Extract all images as data URLs
-      const MIME: Record<string, string> = {
-        jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
-        gif: 'image/gif', bmp: 'image/bmp', webp: 'image/webp',
-      }
-
       const imgDataUrls: string[] = []
       for (let i = 0; i < imageFiles.length; i++) {
         setProgressMsg(`Loading image ${i + 1} of ${imageFiles.length}...`)
-        const ext  = imageFiles[i].split('.').pop()?.toLowerCase() || 'jpg'
-        const mime = MIME[ext] || 'image/jpeg'
-        const b64  = await zip.files[imageFiles[i]].async('base64')
-        imgDataUrls.push(`data:${mime};base64,${b64}`)
+        const ext = imageFiles[i].split('.').pop()?.toLowerCase() || 'jpg'
+        const b64 = await zip.files[imageFiles[i]].async('base64')
+        imgDataUrls.push(`data:${MIME[ext] || 'image/jpeg'};base64,${b64}`)
       }
 
-      // Auto-compress loop to fit targetBytes
-      const qualities = targetBytes ? [85, 70, 55, 42, 30, 20, 12] : [82]
-      let bestBlob: Blob | null = null
+      const qualities = targetBytes ? [85,70,55,42,30,20,12] : [82]
+      let bestBlob: Blob = new Blob()
 
       for (const q of qualities) {
         if (targetBytes) setProgressMsg(`Optimizing quality ${q}%...`)
-
         const firstImg = await loadImage(imgDataUrls[0])
-        const pdf = new jsPDF({
-          orientation: firstImg.width > firstImg.height ? 'landscape' : 'portrait',
-          unit: 'px',
-          format: [firstImg.width, firstImg.height],
-          compress: true,
-        })
+        const pdf = new jsPDF({ orientation: firstImg.width > firstImg.height ? 'landscape' : 'portrait', unit: 'px', format: [firstImg.width, firstImg.height], compress: true })
 
-        // Page 1: text header if text exists
-        let pageIndex = 0
-
-        // Add text page first if document has text content
-        if (hasText) {
-          // We add text on first page as header, then images follow
-          pdf.setFontSize(10)
-          const maxW = firstImg.width * 0.264583 // px to mm approx
-          const textLines = pdf.splitTextToSize(docText.substring(0, 2000), Math.min(maxW - 20, 170))
-          // Add a text-only first page in A4
-          // Actually — put text as caption under first image instead
-          // (keeps it readable without breaking layout)
-        }
-
-        // Add each image as a full page
         for (let i = 0; i < imgDataUrls.length; i++) {
-          setProgressMsg(`Adding image ${i + 1} of ${imgDataUrls.length} at quality ${q}%...`)
+          setProgressMsg(`Adding image ${i + 1} of ${imgDataUrls.length}...`)
           const img = await loadImage(imgDataUrls[i])
-          const w = img.width, h = img.height
-
-          if (i > 0) {
-            pdf.addPage([w, h], w > h ? 'landscape' : 'portrait')
-          }
-
-          // Draw image to canvas at desired quality
+          if (i > 0) pdf.addPage([img.width, img.height], img.width > img.height ? 'landscape' : 'portrait')
           const canvas = document.createElement('canvas')
-          canvas.width = w; canvas.height = h
+          canvas.width = img.width; canvas.height = img.height
           canvas.getContext('2d')!.drawImage(img, 0, 0)
-          const dataUrl = canvas.toDataURL('image/jpeg', q / 100)
-          pdf.addImage(dataUrl, 'JPEG', 0, 0, w, h)
-          pageIndex++
+          pdf.addImage(canvas.toDataURL('image/jpeg', q / 100), 'JPEG', 0, 0, img.width, img.height)
         }
 
-        // If there is text, add a final text page after all images
         if (hasText) {
           pdf.addPage()
           pdf.setFontSize(11)
-          const textLines = pdf.splitTextToSize(docText, 180)
+          const lines = pdf.splitTextToSize(docText, 180)
           let y = 15
-          for (const line of textLines) {
-            if (y > 280) { pdf.addPage(); y = 15 }
-            pdf.text(line, 10, y); y += 6
-          }
+          for (const line of lines) { if (y > 280) { pdf.addPage(); y = 15 } pdf.text(line, 10, y); y += 6 }
         }
-
-        // If there are videos, add a note page
         if (hasVideos) {
           pdf.addPage()
-          pdf.setFontSize(13)
-          pdf.setTextColor(150, 150, 150)
-          pdf.text('Video Content Note', 10, 20)
-          pdf.setFontSize(10)
-          pdf.text('This document contained the following video file(s).', 10, 32)
-          pdf.text('Videos cannot be embedded in PDF format.', 10, 40)
-          pdf.text('Please refer to the original DOCX file to view them.', 10, 48)
-          pdf.setFontSize(9)
-          videoFiles.forEach((vf, i) => {
-            pdf.text(`• ${vf.split('/').pop()}`, 10, 62 + i * 8)
-          })
+          pdf.setFontSize(12); pdf.setTextColor(120,120,120)
+          pdf.text('Note: This document contained video(s) that cannot be embedded in PDF.', 10, 20)
+          videoFiles.forEach((vf, i) => { pdf.setFontSize(10); pdf.text(`• ${vf.split('/').pop()}`, 10, 35 + i * 8) })
         }
-
         const blob: Blob = pdf.output('blob')
         bestBlob = blob
         if (!targetBytes || blob.size <= targetBytes) break
       }
-
-      return {
-        blob: bestBlob!,
-        name: file.name.replace(/\.[^.]+$/, '') + '.pdf',
-      }
+      return { blob: bestBlob, name: file.name.replace(/\.[^.]+$/, '') + '.pdf' }
     }
 
-    // TEXT-ONLY document (no images found)
-    setProgressMsg('Building text PDF...')
-
-    // Add video note to text if videos exist
     let fullText = docText
     if (hasVideos) {
-      fullText += '\n\n---\nNote: This document contained video file(s) that cannot be embedded in PDF:\n'
+      fullText += '\n\n---\nNote: Videos in this document (cannot be embedded in PDF):\n'
       videoFiles.forEach(vf => { fullText += `• ${vf.split('/').pop()}\n` })
     }
-
-    return buildTextPdf(
-      fullText,
-      file.name.replace(/\.[^.]+$/, '') + '.pdf',
-      targetBytes,
-      false,
-      setProgressMsg
-    )
+    return buildTextPdf(fullText, file.name.replace(/\.[^.]+$/, '') + '.pdf', targetBytes, false, setProgressMsg)
   }
 
   // ── TXT → PDF ──
-  const doTxtToPdf = async (file: File): Promise<{ blob: Blob; name: string }> => {
+  const doTxtToPdf = async (file: File) => {
     setProgressMsg('Reading text file...')
     const text = await file.text()
-    if (!text.trim()) throw new Error('The text file appears to be empty.')
-    setProgressMsg(`Found ${text.length} characters. Building PDF...`)
+    if (!text.trim()) throw new Error('The text file is empty.')
     return buildTextPdf(text.trim(), file.name.replace(/\.[^.]+$/, '') + '.pdf', targetBytes, false, setProgressMsg)
   }
 
   // ── CSV → PDF ──
-  const doCsvToPdf = async (file: File): Promise<{ blob: Blob; name: string }> => {
-    setProgressMsg('Reading CSV file...')
+  const doCsvToPdf = async (file: File) => {
+    setProgressMsg('Reading CSV...')
     const raw = await file.text()
-    if (!raw.trim()) throw new Error('The CSV file appears to be empty.')
-    const rows = raw.split('\n').filter(r => r.trim())
-    const text = rows.map(r =>
-      r.split(',').map(c => c.trim().replace(/^"|"$/g, '').substring(0, 30)).join('  |  ')
-    ).join('\n')
-    setProgressMsg('Building PDF table...')
+    if (!raw.trim()) throw new Error('The CSV file is empty.')
+    const text = raw.split('\n').filter(r => r.trim())
+      .map(r => r.split(',').map(c => c.trim().replace(/^"|"$/g, '').substring(0, 30)).join('  |  ')).join('\n')
     return buildTextPdf(text, file.name.replace(/\.[^.]+$/, '') + '.pdf', targetBytes, true, setProgressMsg)
   }
 
   // ── HTML → PDF ──
-  const doHtmlToPdf = async (file: File): Promise<{ blob: Blob; name: string }> => {
-    setProgressMsg('Reading HTML file...')
+  const doHtmlToPdf = async (file: File) => {
+    setProgressMsg('Reading HTML...')
     const html = await file.text()
     const tmp = document.createElement('div')
-    tmp.innerHTML = html
-    tmp.querySelectorAll('script,style').forEach(el => el.remove())
+    tmp.innerHTML = html; tmp.querySelectorAll('script,style').forEach(el => el.remove())
     const text = (tmp.innerText || tmp.textContent || '').trim()
     if (!text) throw new Error('No readable text found in this HTML file.')
-    setProgressMsg('Building PDF...')
     return buildTextPdf(text, file.name.replace(/\.[^.]+$/, '') + '.pdf', targetBytes, false, setProgressMsg)
   }
 
   // ── Image → PDF ──
-  const doImgToPdf = async (file: File): Promise<{ blob: Blob; name: string }> => {
+  const doImgToPdf = async (file: File) => {
     setProgressMsg('Loading image...')
     await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
     await waitForGlobal('jspdf')
-    return new Promise((resolve, reject) => {
+    return new Promise<{ blob: Blob; name: string }>((resolve, reject) => {
       const img = new Image()
       const url = URL.createObjectURL(file)
       img.onload = async () => {
@@ -402,59 +358,72 @@ export default function ConverterPage() {
           URL.revokeObjectURL(url)
           const { jsPDF } = (window as any).jspdf
           const orientation = w > h ? 'landscape' : 'portrait'
-          if (!targetBytes) {
-            setProgressMsg('Creating PDF...')
-            const pdf = new jsPDF({ orientation, unit: 'px', format: [w, h] })
-            pdf.addImage(canvas.toDataURL('image/jpeg', 0.82), 'JPEG', 0, 0, w, h)
-            resolve({ blob: pdf.output('blob'), name: file.name.replace(/\.[^.]+$/, '') + '.pdf' })
-            return
-          }
-          const qualities = [85, 70, 55, 42, 30, 22, 14, 8]
+          const qualities = targetBytes ? [85,70,55,42,30,22,14,8] : [82]
           let bestBlob: Blob = new Blob()
           for (const q of qualities) {
-            setProgressMsg(`Optimizing quality ${q}%...`)
+            if (targetBytes) setProgressMsg(`Optimizing quality ${q}%...`)
             const pdf = new jsPDF({ orientation, unit: 'px', format: [w, h] })
             pdf.addImage(canvas.toDataURL('image/jpeg', q / 100), 'JPEG', 0, 0, w, h)
             const blob: Blob = pdf.output('blob')
             bestBlob = blob
-            if (blob.size <= targetBytes) break
+            if (!targetBytes || blob.size <= targetBytes) break
           }
           resolve({ blob: bestBlob, name: file.name.replace(/\.[^.]+$/, '') + '.pdf' })
         } catch (e: any) { reject(e) }
       }
-      img.onerror = () => reject(new Error('Cannot load image file'))
+      img.onerror = () => reject(new Error('Cannot load image'))
       img.src = url
     })
   }
 
-  // ── Universal compressor ──
-  const doCompressAny = async (file: File): Promise<{ blob: Blob; name: string }> => {
+  // ══════════════════════════════════
+  // COMPRESS — with KB/MB target input
+  // ══════════════════════════════════
+  const doCompressAny = async (file: File) => {
     const isImage = file.type.startsWith('image/')
+
     if (isImage) {
-      setProgressMsg('Compressing image...')
-      return new Promise((resolve, reject) => {
-        const img = new Image()
-        const url = URL.createObjectURL(file)
-        img.onload = () => {
-          const canvas = document.createElement('canvas')
-          canvas.width = img.width; canvas.height = img.height
-          canvas.getContext('2d')!.drawImage(img, 0, 0)
-          URL.revokeObjectURL(url)
-          const fmt = file.type === 'image/png' ? 'image/png' : 'image/jpeg'
-          const ext = file.type === 'image/png' ? '.png' : '.jpg'
-          const q   = COMPRESS_LEVELS[compressLevel].quality
-          canvas.toBlob((blob) => {
-            if (!blob) return reject(new Error('Compression failed'))
-            resolve({ blob, name: file.name.replace(/\.[^.]+$/, '') + '_compressed' + ext })
-          }, fmt, q / 100)
+      setProgressMsg('Loading image...')
+      // Draw image to canvas first
+      const bitmap = await createImageBitmap(file)
+      const canvas = document.createElement('canvas')
+      canvas.width  = bitmap.width
+      canvas.height = bitmap.height
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(bitmap, 0, 0)
+      bitmap.close()
+
+      const ext = file.type === 'image/png' ? '.png' : '.jpg'
+      const fmt = file.type === 'image/png' ? 'image/png' : 'image/jpeg'
+
+      if (compressTargetBytes) {
+        // Auto-compress: try qualities from high to low until fits
+        const qualities = [95, 82, 68, 55, 42, 30, 20, 12, 6, 3]
+        let bestBlob: Blob = new Blob()
+        for (const q of qualities) {
+          setProgressMsg(`Trying quality ${q}%... (target: ${compressTargetValue}${compressTargetUnit})`)
+          const blob = await new Promise<Blob>((res, rej) => {
+            canvas.toBlob((b) => b ? res(b) : rej(new Error('Failed')), fmt, q / 100)
+          })
+          bestBlob = blob
+          if (blob.size <= compressTargetBytes) break
         }
-        img.onerror = () => reject(new Error('Cannot load image'))
-        img.src = url
-      })
+        return { blob: bestBlob, name: file.name.replace(/\.[^.]+$/, '') + '_compressed' + ext }
+      } else {
+        // Use ZIP level to pick quality for images
+        const qualityMap = [95, 82, 65, 50, 35, 20]
+        const q = qualityMap[selectedQualityIdx] ?? 65
+        setProgressMsg(`Compressing at quality ${q}%...`)
+        const blob = await new Promise<Blob>((res, rej) => {
+          canvas.toBlob((b) => b ? res(b) : rej(new Error('Failed')), fmt, q / 100)
+        })
+        return { blob, name: file.name.replace(/\.[^.]+$/, '') + '_compressed' + ext }
+      }
     } else {
       setProgressMsg('Compressing file into ZIP...')
       await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js')
       await waitForGlobal('JSZip')
+      const zipLevel = ZIP_LEVELS[selectedQualityIdx]?.zipLevel ?? 6
       const arrayBuffer = await file.arrayBuffer()
       const zip = new (window as any).JSZip()
       zip.file(file.name, new Uint8Array(arrayBuffer), { binary: true })
@@ -463,14 +432,15 @@ export default function ConverterPage() {
     }
   }
 
-  // ── PDF → Images ──
-  const doPdfToImg = async (file: File): Promise<{ blob: Blob; name: string }> => {
+  // ══════════════════════════════════
+  // CONVERT tools
+  // ══════════════════════════════════
+  const doPdfToImg = async (file: File) => {
     setProgressMsg('Loading PDF reader...')
     await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js')
     await waitForGlobal('pdfjsLib')
     const pdfjsLib = (window as any).pdfjsLib
-    pdfjsLib.GlobalWorkerOptions.workerSrc =
-      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
     await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js')
     await waitForGlobal('JSZip')
     const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise
@@ -489,9 +459,27 @@ export default function ConverterPage() {
     return { blob, name: file.name.replace(/\.[^.]+$/, '') + '_pages.zip' }
   }
 
-  // ── Image format conversion ──
-  const doImgConvert = (file: File, fmt: string, ext: string): Promise<{ blob: Blob; name: string }> => {
-    return new Promise((resolve, reject) => {
+  const doPdfToTxt = async (file: File) => {
+    setProgressMsg('Extracting text from PDF...')
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js')
+    await waitForGlobal('pdfjsLib')
+    const pdfjsLib = (window as any).pdfjsLib
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+    const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise
+    let fullText = ''
+    for (let i = 1; i <= pdf.numPages; i++) {
+      setProgressMsg(`Reading page ${i} of ${pdf.numPages}...`)
+      const page = await pdf.getPage(i)
+      const content = await page.getTextContent()
+      const pageText = content.items.map((item: any) => item.str).join(' ')
+      fullText += `\n--- Page ${i} ---\n${pageText}\n`
+    }
+    const blob = new Blob([fullText], { type: 'text/plain' })
+    return { blob, name: file.name.replace(/\.[^.]+$/, '') + '.txt' }
+  }
+
+  const doImgConvert = (file: File, fmt: string, ext: string) => {
+    return new Promise<{ blob: Blob; name: string }>((resolve, reject) => {
       const img = new Image()
       const url = URL.createObjectURL(file)
       img.onload = () => {
@@ -509,24 +497,73 @@ export default function ConverterPage() {
     })
   }
 
+  // ── Custom convert handler ──
+  const doCustomConvert = async (file: File) => {
+    const from = customFrom, to = customTo
+    setProgressMsg(`Converting ${from} → ${to}...`)
+
+    if (to === 'PDF') {
+      if (from === 'DOCX') return doDocxToPdf(file)
+      if (from === 'TXT')  return doTxtToPdf(file)
+      if (from === 'CSV')  return doCsvToPdf(file)
+      if (from === 'HTML') return doHtmlToPdf(file)
+      if (['JPG','PNG','WebP','BMP'].includes(from)) return doImgToPdf(file)
+    }
+    if (to === 'TXT') {
+      if (from === 'PDF') return doPdfToTxt(file)
+      if (from === 'CSV') {
+        const text = await file.text()
+        return { blob: new Blob([text], { type: 'text/plain' }), name: file.name.replace(/\.[^.]+$/, '') + '.txt' }
+      }
+      if (from === 'HTML') {
+        const html = await file.text()
+        const tmp = document.createElement('div'); tmp.innerHTML = html
+        const text = tmp.innerText || tmp.textContent || ''
+        return { blob: new Blob([text], { type: 'text/plain' }), name: file.name.replace(/\.[^.]+$/, '') + '.txt' }
+      }
+      if (from === 'DOCX') {
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js')
+        await waitForGlobal('mammoth')
+        const result = await (window as any).mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() })
+        return { blob: new Blob([result.value || ''], { type: 'text/plain' }), name: file.name.replace(/\.[^.]+$/, '') + '.txt' }
+      }
+    }
+    if (to === 'Images (PNG ZIP)' && from === 'PDF') return doPdfToImg(file)
+    if (to === 'PNG'  && ['JPG','WebP','BMP'].includes(from)) return doImgConvert(file, 'image/png', '.png')
+    if (to === 'JPG'  && ['PNG','WebP','BMP'].includes(from)) return doImgConvert(file, 'image/jpeg', '.jpg')
+    if (to === 'WebP' && ['JPG','PNG','BMP'].includes(from))  return doImgConvert(file, 'image/webp', '.webp')
+    throw new Error(`${from} → ${to} conversion is not yet supported.`)
+  }
+
   // ── Main run ──
   const run = async () => {
     if (!file) return
     setStatus('processing'); setErrorMsg(''); setProgressMsg('Starting...'); setDocInfo('')
     try {
       let result: { blob: Blob; name: string }
-      switch (tool.id) {
-        case 'docx-to-pdf':  result = await doDocxToPdf(file);  break
-        case 'txt-to-pdf':   result = await doTxtToPdf(file);   break
-        case 'img-to-pdf':   result = await doImgToPdf(file);   break
-        case 'csv-to-pdf':   result = await doCsvToPdf(file);   break
-        case 'html-to-pdf':  result = await doHtmlToPdf(file);  break
-        case 'compress-any': result = await doCompressAny(file); break
-        case 'img-to-jpg':   result = await doImgConvert(file, 'image/jpeg', '.jpg'); break
-        case 'img-to-png':   result = await doImgConvert(file, 'image/png',  '.png'); break
-        case 'pdf-to-img':   result = await doPdfToImg(file);   break
-        default: throw new Error('Tool not available')
+
+      if (activeGroup === 'compress') {
+        result = await doCompressAny(file)
+      } else if (activeGroup === 'to-pdf') {
+        switch (toPdfTool.id) {
+          case 'docx-to-pdf': result = await doDocxToPdf(file); break
+          case 'txt-to-pdf':  result = await doTxtToPdf(file);  break
+          case 'img-to-pdf':  result = await doImgToPdf(file);  break
+          case 'csv-to-pdf':  result = await doCsvToPdf(file);  break
+          case 'html-to-pdf': result = await doHtmlToPdf(file); break
+          default: throw new Error('Unknown tool')
+        }
+      } else {
+        switch (convertTool.id) {
+          case 'img-to-jpg':     result = await doImgConvert(file, 'image/jpeg', '.jpg'); break
+          case 'img-to-png':     result = await doImgConvert(file, 'image/png', '.png');  break
+          case 'pdf-to-img':     result = await doPdfToImg(file);    break
+          case 'pdf-to-txt':     result = await doPdfToTxt(file);    break
+          case 'custom-convert': result = await doCustomConvert(file); break
+          default: throw new Error('Unknown tool')
+        }
       }
+
       setDownloadUrl(URL.createObjectURL(result.blob))
       setDownloadName(result.name)
       setOutputSize(result.blob.size)
@@ -538,9 +575,16 @@ export default function ConverterPage() {
     }
   }
 
-  const isCompressor = tool.id === 'compress-any'
-  const isToPdf      = tool.group === 'to-pdf'
-  const fitsTarget   = outputSize !== null && targetBytes ? outputSize <= targetBytes : true
+  const isCompress = activeGroup === 'compress'
+  const isToPdf    = activeGroup === 'to-pdf'
+  const isConvert  = activeGroup === 'convert'
+  const isCustom   = isConvert && convertTool.id === 'custom-convert'
+
+  const compressResultFits = outputSize !== null && compressTargetBytes ? outputSize <= compressTargetBytes : true
+  const pdfResultFits      = outputSize !== null && targetBytes ? outputSize <= targetBytes : true
+  const fitsTarget         = isCompress ? compressResultFits : pdfResultFits
+
+  const getAcceptStr = getAccept()
 
   return (
     <main className="min-h-screen bg-background text-foreground py-12">
@@ -559,7 +603,7 @@ export default function ConverterPage() {
         <div className="flex gap-2 mb-6 flex-wrap">
           {GROUPS.map((g) => (
             <button key={g.id} onClick={() => handleGroup(g.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all border ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all border ${
                 activeGroup === g.id
                   ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20'
                   : 'bg-card border-border/60 text-muted-foreground hover:border-emerald-500/30'
@@ -569,78 +613,57 @@ export default function ConverterPage() {
           ))}
         </div>
 
-        {/* Tool grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-          {visibleTools.map((t) => (
-            <button key={t.id} onClick={() => { setTool(t); reset() }}
-              className={`relative p-4 rounded-2xl border text-left transition-all duration-200 ${
-                tool.id === t.id ? 'border-emerald-500 bg-emerald-500/10' : 'border-border/60 bg-card hover:border-emerald-500/30'
-              }`}>
-              {t.tag && (
-                <span className={`absolute top-2 right-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${TAG_STYLES[t.tagColor]}`}>
-                  {t.tag}
-                </span>
-              )}
-              <div className="text-2xl mb-2">{t.icon}</div>
-              <div className="text-sm font-bold text-foreground leading-tight">{t.label}</div>
-              <div className="text-xs text-muted-foreground mt-0.5 leading-snug">{t.desc}</div>
-            </button>
-          ))}
-        </div>
-
-        {/* DOCX info box */}
-        <AnimatePresence>
-          {tool.id === 'docx-to-pdf' && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-6 overflow-hidden">
-              <div className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 space-y-2">
-                <p className="text-sm font-bold text-emerald-400">What this handles automatically</p>
-                <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1.5"><span>📝</span> Text documents</div>
-                  <div className="flex items-center gap-1.5"><span>🖼️</span> Docs with images</div>
-                  <div className="flex items-center gap-1.5"><span>📄</span> Mixed content</div>
-                  <div className="flex items-center gap-1.5"><span>📊</span> Tables → text</div>
-                  <div className="flex items-center gap-1.5"><span>🗜️</span> KB size target</div>
-                  <div className="flex items-center gap-1.5"><span>🎥</span> Video → note added</div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* KB target */}
+        {/* ── TO-PDF tool grid ── */}
         <AnimatePresence>
           {isToPdf && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-6 overflow-hidden">
-              <div className="p-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 space-y-3">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {TO_PDF_TOOLS.map((t) => (
+                  <button key={t.id} onClick={() => { setToPdfTool(t); reset() }}
+                    className={`relative p-4 rounded-2xl border text-left transition-all ${
+                      toPdfTool.id === t.id ? 'border-emerald-500 bg-emerald-500/10' : 'border-border/60 bg-card hover:border-emerald-500/30'
+                    }`}>
+                    {t.tag && <span className={`absolute top-2 right-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${TAG_STYLES[t.tagColor]}`}>{t.tag}</span>}
+                    <div className="text-2xl mb-2">{t.icon}</div>
+                    <div className="text-sm font-bold text-foreground">{t.label}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5 leading-snug">{t.desc}</div>
+                  </button>
+                ))}
+              </div>
+
+              {/* DOCX info */}
+              {toPdfTool.id === 'docx-to-pdf' && (
+                <div className="mt-4 p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5">
+                  <p className="text-xs font-bold text-emerald-400 mb-2">Handles automatically</p>
+                  <div className="grid grid-cols-3 gap-1.5 text-xs text-muted-foreground">
+                    {['📝 Text docs','🖼️ Docs with images','📊 Tables','📄 Mixed content','🗜️ KB/MB target','🎥 Videos → note'].map(item => (
+                      <span key={item}>{item}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* KB target */}
+              <div className="mt-4 p-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 space-y-3">
                 <div className="flex items-center gap-2">
                   <Target className="w-4 h-4 text-emerald-500" />
-                  <p className="text-sm font-bold text-foreground">
-                    Target File Size in KB <span className="text-muted-foreground font-normal">(optional)</span>
-                  </p>
+                  <p className="text-sm font-bold text-foreground">Target File Size <span className="text-muted-foreground font-normal">(optional)</span></p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Enter the max KB your PDF must be. The converter auto-reduces quality until it fits.
-                </p>
+                <p className="text-xs text-muted-foreground">Enter max KB for the PDF. Converter auto-reduces quality to fit.</p>
                 <div className="flex items-center gap-3">
                   <div className="relative flex-1">
                     <input type="number" min="10" placeholder="e.g. 500"
                       value={targetKB} onChange={(e) => setTargetKB(e.target.value)}
-                      className="w-full px-4 py-3 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all pr-16"
+                      className="w-full px-4 py-3 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/50 pr-16"
                     />
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-emerald-500">KB</span>
                   </div>
-                  {targetKB && (
-                    <button onClick={() => setTargetKB('')} className="p-3 rounded-xl border border-border/60 text-muted-foreground hover:text-red-400 transition-all">
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
+                  {targetKB && <button onClick={() => setTargetKB('')} className="p-3 rounded-xl border border-border/60 text-muted-foreground hover:text-red-400 transition-all"><X className="w-4 h-4" /></button>}
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  {['100', '200', '500', '1000', '2000'].map(kb => (
+                  {['100','200','500','1000','2000'].map(kb => (
                     <button key={kb} onClick={() => setTargetKB(kb)}
-                      className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${
-                        targetKB === kb ? 'bg-emerald-500 text-white border-emerald-500' : 'border-border/60 text-muted-foreground hover:border-emerald-500/30'
-                      }`}>
+                      className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${targetKB === kb ? 'bg-emerald-500 text-white border-emerald-500' : 'border-border/60 text-muted-foreground hover:border-emerald-500/30'}`}>
                       {parseInt(kb) >= 1000 ? `${parseInt(kb)/1000}MB` : `${kb}KB`}
                     </button>
                   ))}
@@ -650,25 +673,73 @@ export default function ConverterPage() {
           )}
         </AnimatePresence>
 
-        {/* Compression level */}
+
+        {/* ── CONVERT tool grid + custom ── */}
         <AnimatePresence>
-          {isCompressor && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-6 overflow-hidden">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">Compression Level</p>
-              <div className="grid grid-cols-5 gap-2">
-                {COMPRESS_LEVELS.map((level, idx) => (
-                  <button key={idx} onClick={() => setCompressLevel(idx)}
-                    className={`p-3 rounded-xl border text-center transition-all ${
-                      compressLevel === idx ? 'border-emerald-500 bg-emerald-500/10' : 'border-border/60 bg-card hover:border-emerald-500/30'
+          {isConvert && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mb-6 space-y-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {CONVERT_TOOLS.map((t) => (
+                  <button key={t.id} onClick={() => { setConvertTool(t); reset() }}
+                    className={`relative p-4 rounded-2xl border text-left transition-all ${
+                      convertTool.id === t.id ? 'border-emerald-500 bg-emerald-500/10' : 'border-border/60 bg-card hover:border-emerald-500/30'
                     }`}>
-                    <p className={`text-xs font-bold ${compressLevel === idx ? 'text-emerald-400' : 'text-foreground'}`}>{level.label}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{level.subLabel}</p>
+                    {t.tag && <span className={`absolute top-2 right-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${TAG_STYLES[t.tagColor]}`}>{t.tag}</span>}
+                    <div className="text-2xl mb-2">{t.icon}</div>
+                    <div className="text-sm font-bold text-foreground">{t.label}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{t.desc}</div>
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground mt-3">
-                Accepts: <span className="text-emerald-400">PDF · DOCX · TXT · JPG · PNG · any file</span>
-              </p>
+
+              {/* Custom convert FROM → TO selector */}
+              {isCustom && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-5 rounded-2xl border border-violet-500/20 bg-violet-500/5 space-y-4">
+                  <p className="text-sm font-bold text-violet-400">Choose conversion</p>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {/* FROM */}
+                    <div className="flex-1 min-w-[120px]">
+                      <p className="text-xs text-muted-foreground mb-1.5 font-semibold uppercase tracking-wide">From</p>
+                      <select
+                        value={customFrom}
+                        onChange={(e) => {
+                          setCustomFrom(e.target.value)
+                          const toOptions = CUSTOM_TO_FORMATS[e.target.value] || []
+                          setCustomTo(toOptions[0] || '')
+                          reset()
+                        }}
+                        className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-violet-500/50 text-sm font-semibold"
+                      >
+                        {CUSTOM_FROM_FORMATS.map(f => <option key={f} value={f}>{f}</option>)}
+                      </select>
+                    </div>
+
+                    <div className="flex items-center pt-5">
+                      <ArrowRight className="w-5 h-5 text-violet-400" />
+                    </div>
+
+                    {/* TO */}
+                    <div className="flex-1 min-w-[120px]">
+                      <p className="text-xs text-muted-foreground mb-1.5 font-semibold uppercase tracking-wide">To</p>
+                      <select
+                        value={customTo}
+                        onChange={(e) => { setCustomTo(e.target.value); reset() }}
+                        className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-violet-500/50 text-sm font-semibold"
+                      >
+                        {(CUSTOM_TO_FORMATS[customFrom] || []).map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  {customFrom && customTo && (
+                    <p className="text-xs text-violet-400">
+                      Will convert: <span className="font-bold">{customFrom}</span> → <span className="font-bold">{customTo}</span>
+                      {' · '}
+                      <span className="text-muted-foreground">Upload a .{customFrom.toLowerCase()} file below</span>
+                    </p>
+                  )}
+                </motion.div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -683,7 +754,7 @@ export default function ConverterPage() {
             file ? 'cursor-default' : 'cursor-pointer'
           } ${dragOver ? 'border-emerald-500 bg-emerald-500/10' : file ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-border/60 bg-card hover:border-emerald-500/30 hover:bg-emerald-500/5'}`}
         >
-          <input ref={fileRef} type="file" accept={tool.accept} className="hidden"
+          <input ref={fileRef} type="file" accept={getAcceptStr} className="hidden"
             onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
           <AnimatePresence mode="wait">
             {file ? (
@@ -695,7 +766,6 @@ export default function ConverterPage() {
                   <p className="font-bold text-foreground text-lg">{file.name}</p>
                   <p className="text-sm text-muted-foreground mt-1">
                     Size: <span className="text-amber-400 font-semibold">{formatSize(file.size)}</span>
-                    {targetKB && <span className="ml-2">→ target: <span className="text-emerald-400 font-semibold">{targetKB} KB</span></span>}
                   </p>
                 </div>
                 <button onClick={(e) => { e.stopPropagation(); reset() }} className="inline-flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 transition-colors">
@@ -707,13 +777,14 @@ export default function ConverterPage() {
                 <Upload className="w-10 h-10 text-muted-foreground mx-auto" />
                 <div>
                   <p className="font-semibold text-foreground">
-                    {isCompressor ? 'Drop any file here' : <>Drop your <span className="text-emerald-500">{tool.label.split('→')[0].trim()}</span> file here</>}
+                    {isCompress ? 'Drop any file to compress' :
+                     isCustom   ? `Drop your ${customFrom} file here` :
+                     isToPdf    ? <>Drop your <span className="text-emerald-500">{toPdfTool.label.split('→')[0].trim()}</span> file here</> :
+                                  <>Drop your <span className="text-emerald-500">{convertTool.label.split('→')[0].trim()}</span> file here</>
+                    }
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">or click to browse</p>
                 </div>
-                <p className="text-xs text-muted-foreground/50">
-                  {isCompressor ? 'PDF · DOCX · TXT · JPG · PNG · any file' : tool.accept.replaceAll('.', '').toUpperCase()}
-                </p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -725,6 +796,101 @@ export default function ConverterPage() {
           </button>
         )}
 
+
+        {/* ── COMPRESS settings (shown after file upload) ── */}
+        <AnimatePresence>
+          {isCompress && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mb-6 space-y-4">
+
+              {/* Target size input */}
+              <div className="p-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Target className="w-4 h-4 text-emerald-500" />
+                  <p className="text-sm font-bold text-foreground">
+                    Target File Size
+                    <span className="text-muted-foreground font-normal ml-1">(optional)</span>
+                  </p>
+                </div>
+                <p className="text-xs text-muted-foreground">Enter the maximum size you need. The converter will automatically compress to fit. Upload a file above to see quality prediction.</p>
+                <div className="flex items-center gap-3">
+                  <div className="relative flex-1">
+                    <input type="number" min="1"
+                      placeholder={compressTargetUnit === 'KB' ? 'e.g. 500' : 'e.g. 2'}
+                      value={compressTargetValue}
+                      onChange={(e) => setCompressTargetValue(e.target.value)}
+                      className="w-full px-4 py-3 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/50 pr-20"
+                    />
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-0.5">
+                      {(['KB','MB'] as const).map(u => (
+                        <button key={u} onClick={() => setCompressTargetUnit(u)}
+                          className={`text-xs px-2 py-1 rounded-lg font-bold transition-all ${compressTargetUnit === u ? 'bg-emerald-500 text-white' : 'text-muted-foreground hover:text-emerald-400'}`}>
+                          {u}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {compressTargetValue && (
+                    <button onClick={() => setCompressTargetValue('')} className="p-3 rounded-xl border border-border/60 text-muted-foreground hover:text-red-400 transition-all">
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Quick presets */}
+                <div className="flex gap-2 flex-wrap">
+                  {[{v:'100',u:'KB'},{v:'200',u:'KB'},{v:'500',u:'KB'},{v:'1',u:'MB'},{v:'2',u:'MB'},{v:'5',u:'MB'}].map(p => (
+                    <button key={p.v+p.u}
+                      onClick={() => { setCompressTargetValue(p.v); setCompressTargetUnit(p.u as 'KB'|'MB') }}
+                      className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${
+                        compressTargetValue === p.v && compressTargetUnit === p.u
+                          ? 'bg-emerald-500 text-white border-emerald-500'
+                          : 'border-border/60 text-muted-foreground hover:border-emerald-500/30'
+                      }`}>
+                      {p.v}{p.u}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Live quality prediction — only for images with target set */}
+                {file && file.type.startsWith('image/') && compressTargetValue && (() => {
+                  const pred = getQualityPrediction(file.size, compressTargetValue, compressTargetUnit)
+                  if (!pred) return null
+                  return (
+                    <div className={`mt-2 p-3 rounded-xl border ${
+                      pred.color === 'text-emerald-400' ? 'border-emerald-500/30 bg-emerald-500/5' :
+                      pred.color === 'text-yellow-400'  ? 'border-yellow-500/30 bg-yellow-500/5' :
+                      pred.color === 'text-orange-400'  ? 'border-orange-500/30 bg-orange-500/5' :
+                                                          'border-red-500/30 bg-red-500/5'
+                    }`}>
+                      <p className={`text-sm font-bold ${pred.color}`}>{pred.emoji} {pred.label}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{pred.detail}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Compressing from <span className="font-semibold text-amber-400">{formatSize(file.size)}</span>
+                        {' '}to <span className="font-semibold text-emerald-400">{compressTargetValue}{compressTargetUnit}</span>
+                        {' '}({Math.round((parseFloat(compressTargetValue) * (compressTargetUnit === 'MB' ? 1024 * 1024 : 1024)) / file.size * 100)}% of original)
+                      </p>
+                    </div>
+                  )
+                })()}
+
+                {/* For non-image files, just show a simple note */}
+                {file && !file.type.startsWith('image/') && compressTargetValue && (
+                  <div className="mt-2 p-3 rounded-xl border border-sky-500/20 bg-sky-500/5">
+                    <p className="text-xs text-sky-400">
+                      📦 Will compress into ZIP and try to reach {compressTargetValue}{compressTargetUnit}.
+                      Note: ZIP compression works best on text files (DOCX, TXT, CSV). Already-compressed files (JPG, MP4, ZIP) may not shrink much.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Accepts any file: <span className="text-emerald-400">PDF · DOCX · TXT · JPG · PNG · PPTX · XLSX · any</span>
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Progress */}
         <AnimatePresence>
           {status === 'processing' && progressMsg && (
@@ -735,14 +901,18 @@ export default function ConverterPage() {
           )}
         </AnimatePresence>
 
-        {/* Convert button */}
+        {/* Action button */}
         <button onClick={run} disabled={!file || status === 'processing'}
           className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95 flex items-center justify-center gap-3 text-lg mb-6">
           {status === 'processing'
-            ? <><RefreshCw className="w-5 h-5 animate-spin" /> {targetKB && isToPdf ? 'Auto-compressing to fit target...' : 'Processing...'}</>
-            : isCompressor
-              ? <>📦 Compress File</>
-              : <>{tool.icon} Convert to {tool.label.split('→')[1]?.trim()}{targetKB && isToPdf ? ` (max ${targetKB} KB)` : ''}</>
+            ? <><RefreshCw className="w-5 h-5 animate-spin" /> Processing...</>
+            : isCompress
+              ? <>📦 Compress {compressTargetValue ? `to ${compressTargetValue}${compressTargetUnit}` : `(${ZIP_LEVELS[selectedQualityIdx]?.label ?? 'Recommended'})`}</>
+              : isCustom
+                ? <>⚙️ Convert {customFrom} → {customTo}</>
+                : isToPdf
+                  ? <>{toPdfTool.icon} Convert to PDF{targetKB ? ` (max ${targetKB}KB)` : ''}</>
+                  : <>{convertTool.icon} {convertTool.label}</>
           }
         </button>
 
@@ -759,27 +929,17 @@ export default function ConverterPage() {
                   }
                   <div className="flex-1 space-y-1">
                     <p className="font-bold text-foreground">
-                      {fitsTarget ? (isCompressor ? 'Compressed!' : 'Converted!') : 'Done — slightly over target'}
+                      {fitsTarget ? (isCompress ? 'Compressed!' : 'Converted!') : 'Done — slightly over target'}
                     </p>
                     <p className="text-sm text-muted-foreground">{downloadName}</p>
                     {docInfo && <p className="text-xs text-emerald-400">Detected: {docInfo}</p>}
-                    {outputSize !== null && (
-                      <div className="space-y-0.5 mt-1">
-                        {file && <p className="text-sm">
-                          {formatSize(file.size)} → <span className={`font-semibold ${fitsTarget ? 'text-emerald-400' : 'text-amber-400'}`}>{formatSize(outputSize)}</span>
-                        </p>}
-                        {targetKB && (
-                          <p className={`text-xs font-semibold ${fitsTarget ? 'text-emerald-400' : 'text-amber-400'}`}>
-                            {fitsTarget
-                              ? `✅ Fits within ${targetKB} KB`
-                              : `⚠️ ${formatSize(outputSize)} — content is too dense to compress further`}
-                          </p>
-                        )}
-                        {file && outputSize < file.size && (
-                          <p className="text-xs text-emerald-400">Saved {Math.round((1 - outputSize / file.size) * 100)}%</p>
-                        )}
-                      </div>
+                    {outputSize !== null && file && (
+                      <p className="text-sm">
+                        {formatSize(file.size)} → <span className={`font-semibold ${fitsTarget ? 'text-emerald-400' : 'text-amber-400'}`}>{formatSize(outputSize)}</span>
+                        {outputSize < file.size && <span className="text-xs text-emerald-400 ml-2">({Math.round((1 - outputSize / file.size) * 100)}% smaller)</span>}
+                      </p>
                     )}
+                    {!fitsTarget && <p className="text-xs text-amber-400">⚠️ Content is too dense to compress further</p>}
                   </div>
                 </div>
                 <a href={downloadUrl} download={downloadName}
@@ -806,7 +966,7 @@ export default function ConverterPage() {
         <div className="grid sm:grid-cols-3 gap-4 mt-4">
           {[
             { icon: '🔒', title: 'Fully Private',  desc: 'Files never leave your device' },
-            { icon: '⚡', title: 'Auto-compress',   desc: 'Fits your KB target automatically' },
+            { icon: '⚡', title: 'Auto-compress',   desc: 'Fits your KB/MB target automatically' },
             { icon: '🆓', title: '100% Free',       desc: 'No account, no payment, no limits' },
           ].map((item) => (
             <div key={item.title} className="rounded-xl border border-border/60 bg-card p-4 text-center space-y-1">
