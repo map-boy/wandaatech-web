@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ThemeProvider } from '@/components/theme-provider'
+import { CookieBanner } from '@/components/cookie-banner'
 import Script from 'next/script'
-import CookieConsent from 'react-cookie-consent'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -106,46 +106,7 @@ export default function RootLayout({
         >
           {children}
           <Analytics />
-
-          {/* ── Cookie Consent Banner ── */}
-          <CookieConsent
-            location="bottom"
-            buttonText="Accept All"
-            declineButtonText="Decline"
-            enableDeclineButton
-            flipButtons
-            style={{
-              background: "#0f172a",
-              borderTop: "1px solid #059669",
-              fontSize: "13px",
-              alignItems: "center",
-            }}
-            buttonStyle={{
-              background: "#059669",
-              color: "#ffffff",
-              fontSize: "13px",
-              fontWeight: "bold",
-              borderRadius: "8px",
-              padding: "8px 20px",
-            }}
-            declineButtonStyle={{
-              background: "transparent",
-              color: "#94a3b8",
-              fontSize: "13px",
-              borderRadius: "8px",
-              border: "1px solid #334155",
-              padding: "8px 16px",
-            }}
-          >
-            We use cookies to improve your experience on our site.{" "}
-            <a
-              href="/privacy"
-              style={{ color: "#34d399", textDecoration: "underline" }}
-            >
-              Privacy Policy
-            </a>
-          </CookieConsent>
-
+          <CookieBanner />
         </ThemeProvider>
       </body>
     </html>
