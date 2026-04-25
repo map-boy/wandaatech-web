@@ -1,6 +1,7 @@
 'use client'
 // app/competitions/page.tsx
 
+import { Suspense } from 'react'
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Header } from '@/components/header'
@@ -10,7 +11,7 @@ import LeaderboardTab from './LeaderboardTab'
 
 type Tab = 'challenges' | 'register' | 'leaderboard'
 
-export default function CompetitionsPage() {
+function CompetitionsInner() {
   const searchParams = useSearchParams()
   const [tab, setTab] = useState<Tab>('challenges')
   const [isRegistered, setIsRegistered] = useState(false)
@@ -61,5 +62,13 @@ export default function CompetitionsPage() {
         {tab === 'leaderboard' && <LeaderboardTab isRegistered={isRegistered} />}
       </main>
     </div>
+  )
+}
+
+export default function CompetitionsPage() {
+  return (
+    <Suspense>
+      <CompetitionsInner />
+    </Suspense>
   )
 }
