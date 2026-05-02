@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { generateToken } from './types'
 
-export default function RegisterTab({ onRegistered }: { onRegistered: (name: string) => void }) {
+export default function RegisterTab({ onRegistered, competitionId }: { onRegistered: (name: string) => void; competitionId?: string | null }) {
   const [type, setType]               = useState<'individual' | 'team' | null>(null)
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail]             = useState('')
@@ -70,6 +70,7 @@ export default function RegisterTab({ onRegistered }: { onRegistered: (name: str
       token,
       team_token: tToken || null,
       team_name:  type === 'team' ? displayName.trim() : null,
+      competition_id: competitionId || null,
     })
 
     setLoading(false)

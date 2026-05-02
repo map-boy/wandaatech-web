@@ -13,18 +13,39 @@ export interface Competition {
   status: 'open' | 'closed' | 'upcoming'
   participants: number
   created_at: string
+  // NEW ↓
+  phase: 'phase_1' | 'phase_2' | 'revealed' | null
+  phase_label: string | null          // e.g. "Phase 1 — Public Leaderboard (30%)"
+  benchmark_score: number | null      // shown at bottom of leaderboard
+  max_submissions_per_day: number | null  // null = unlimited
 }
 
 export interface LeaderboardRow {
   id: string
   username: string
+  team_name: string | null
   model_name: string
   accuracy: number
   f1_score: number
-  precision: number
-  recall: number
+  code_score: number
+  final_score: number
   submitted_at: string
   competition_id: string | null
+  rank: number
+  group_id: string | null
+}
+
+export interface SubmissionHistoryRow {
+  id: string
+  username: string
+  model_name: string
+  accuracy_score: number
+  f1_score: number
+  code_score: number
+  final_score: number
+  created_at: string
+  competition_id: string | null
+  feedback: string[]
 }
 
 export interface LiveFeedItem {
@@ -36,12 +57,13 @@ export interface LiveFeedItem {
 }
 
 export interface ScoreResult {
+  finalScore: number
   accuracy: number
   f1: number
-  precision: number
-  recall: number
+  codeScore: number
   username: string
   modelName: string
+  feedback: string[]
 }
 
 export type Tab = 'challenges' | 'register' | 'leaderboard'
@@ -56,6 +78,8 @@ export const TAG_COLORS: Record<string, string> = {
   'Regression':        'bg-orange-500/10 text-orange-400 border-orange-500/20',
   'Agriculture':       'bg-lime-500/10 text-lime-400 border-lime-500/20',
   'Kinyarwanda':       'bg-rose-500/10 text-rose-400 border-rose-500/20',
+  'Agentic AI':        'bg-purple-500/10 text-purple-400 border-purple-500/20',
+  'Fine-tuning':       'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
 }
 
 export const DEFAULT_TAG = 'bg-slate-500/10 text-slate-400 border-slate-500/20'

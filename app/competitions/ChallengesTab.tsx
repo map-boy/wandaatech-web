@@ -31,7 +31,7 @@ function StatusBadge({ status, deadline }: { status: string; deadline: string })
 }
 
 function CompetitionCard({ comp, isRegistered, registeredName, onGoRegister }: {
-  comp: Competition; isRegistered: boolean; registeredName: string; onGoRegister: () => void
+  comp: Competition; isRegistered: boolean; registeredName: string; onGoRegister: (compId?: string) => void
 }) {
   const [expanded, setExpanded] = useState(false)
   return (
@@ -77,7 +77,7 @@ function CompetitionCard({ comp, isRegistered, registeredName, onGoRegister }: {
                 {expanded ? 'Hide Details' : 'View Challenge'}
               </button>
             ) : (
-              <button onClick={onGoRegister}
+              <button onClick={() => onGoRegister(comp.id)}
                 className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl transition-all active:scale-95 text-sm uppercase tracking-tight">
                 Join Challenge <ArrowRight className="w-4 h-4" />
               </button>
@@ -157,7 +157,7 @@ function CompetitionCard({ comp, isRegistered, registeredName, onGoRegister }: {
 export default function ChallengesTab({
   isRegistered, registeredName, onGoRegister,
 }: {
-  isRegistered: boolean; registeredName: string; onGoRegister: () => void
+  isRegistered: boolean; registeredName: string; onGoRegister: (compId?: string) => void
 }) {
   const [competitions, setCompetitions] = useState<Competition[]>([])
   const [loading, setLoading]           = useState(true)

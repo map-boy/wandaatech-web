@@ -16,6 +16,7 @@ function CompetitionsInner() {
   const [tab, setTab] = useState<Tab>('challenges')
   const [isRegistered, setIsRegistered] = useState(false)
   const [registeredName, setRegisteredName] = useState('')
+  const [activeCompId, setActiveCompId] = useState<string | null>(null)
 
   useEffect(() => {
     const name = localStorage.getItem('vaf_name') || ''
@@ -29,6 +30,11 @@ function CompetitionsInner() {
     setIsRegistered(true)
     setRegisteredName(name)
     setTab('leaderboard')
+  }
+
+  function handleGoRegister(compId?: string) {
+    if (compId) setActiveCompId(compId)
+    setTab('register')
   }
 
   const tabs: { id: Tab; label: string }[] = [
@@ -57,8 +63,8 @@ function CompetitionsInner() {
           ))}
         </div>
 
-        {tab === 'challenges'  && <ChallengesTab  isRegistered={isRegistered} registeredName={registeredName} onGoRegister={() => setTab('register')} />}
-        {tab === 'register'    && <RegisterTab    onRegistered={handleRegistered} />}
+        {tab === 'challenges'  && <ChallengesTab  isRegistered={isRegistered} registeredName={registeredName} onGoRegister={handleGoRegister} />}
+        {tab === 'register'    && <RegisterTab    onRegistered={handleRegistered} competitionId={activeCompId} />}
         {tab === 'leaderboard' && <LeaderboardTab isRegistered={isRegistered} />}
       </main>
     </div>

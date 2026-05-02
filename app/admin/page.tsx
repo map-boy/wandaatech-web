@@ -19,7 +19,7 @@ import {
   Plus, Trash2, Save, X, Edit3,
   CheckCircle, AlertCircle, Loader2,
   ChevronDown, ChevronUp, BarChart2,
-  LogOut, Globe, Settings
+  LogOut, Globe, Settings, Code2, Copy, Terminal
 } from 'lucide-react'
 
 // ── Types ──
@@ -64,7 +64,7 @@ interface SiteSetting {
 }
 
 // ── Tab type ──
-type Tab = 'overview' | 'competitions' | 'registrations' | 'leaderboard' | 'sitetext'
+type Tab = 'overview' | 'competitions' | 'registrations' | 'leaderboard' | 'sitetext' | 'notebookcell'
 
 // ============================================================
 export default function AdminPage() {
@@ -95,6 +95,161 @@ export default function AdminPage() {
   // Site text editing
   const [editingKey,   setEditingKey]   = useState<string | null>(null)
   const [editingValue, setEditingValue] = useState('')
+
+  // Notebook cell
+  const [cellCopied, setCellCopied] = useState(false)
+  const NOTEBOOK_CELL = `# ============================================================
+# VAF ML CLUB — SUBMISSION CELL
+# Place this cell at the BOTTOM of your notebook.
+# Run it when you are ready to generate your submission CSV.
+# ============================================================
+
+# ────────────────────────────────────────────────────────────
+# ★  YOUR INFO  (fill these in — required)
+# ────────────────────────────────────────────────────────────
+STUDENT_NAME        = "Your Full Name"          # e.g. "Musa Kalisa"
+STUDENT_EMAIL       = "your@email.com"          # must match your registration email
+COMPETITION_ID      = "COMP_001"                # given by lecturer
+MODEL_NAME          = "RandomForest"            # name of your model
+
+# ────────────────────────────────────────────────────────────
+# ★  PREDICTIONS  (point to your predictions variable)
+# ────────────────────────────────────────────────────────────
+# Option A — list or numpy array:   MY_PREDICTIONS = y_pred
+# Option B — DataFrame with row_id + predicted_label already
+# Option C — array + test df:       MY_TEST_DF = X_test
+MY_PREDICTIONS      = None    # ← replace with your predictions variable
+MY_TEST_DF          = None    # ← (optional) test DataFrame for row IDs
+
+# ────────────────────────────────────────────────────────────
+# ★  CODE MASTERY  (fill in — these are scored!)
+# ────────────────────────────────────────────────────────────
+PREPROCESSING_STEPS     = "normalize+dropna"
+FEATURE_COUNT           = 0
+VALIDATION_STRATEGY     = "k-fold"   # "k-fold" | "stratified" | "hold-out" | "none"
+USED_CROSS_VALIDATION   = True
+HANDLED_CLASS_IMBALANCE = False
+TRAIN_TEST_SPLIT_RATIO  = 0.8
+
+# ════════════════════════════════════════════════════════════
+#   ↓↓  DO NOT EDIT BELOW THIS LINE  ↓↓
+# ════════════════════════════════════════════════════════════
+import os, sys, json, hashlib, datetime, warnings
+warnings.filterwarnings("ignore")
+
+def _check_imports():
+    missing = []
+    for pkg, imp in [("pandas","pandas"),("numpy","numpy")]:
+        try: __import__(imp)
+        except ImportError: missing.append(pkg)
+    if missing:
+        print(f"⚠  Missing: {', '.join(missing)} — run: pip install {' '.join(missing)}")
+        return False
+    return True
+
+if not _check_imports():
+    raise SystemExit("Fix missing packages then re-run.")
+
+import pandas as pd
+import numpy as np
+
+_G="\\033[92m";_Y="\\033[93m";_R="\\033[91m";_B="\\033[94m";_E="\\033[0m";_BOLD="\\033[1m"
+def ok(m):   print(f"  {_G}✓{_E}  {m}")
+def warn(m): print(f"  {_Y}⚠{_E}  {m}")
+def err(m):  print(f"  {_R}✗{_E}  {_BOLD}{m}{_E}")
+def info(m): print(f"  {_B}ℹ{_E}  {m}")
+def section(t): print(f"\\n{_BOLD}{'─'*55}\\n  {t}\\n{'─'*55}{_E}")
+
+print(f"\\n{_BOLD}{'═'*55}\\n  VAF ML CLUB — Submission Builder\\n{'═'*55}{_E}")
+errors = []
+
+section("STEP 1 / 5 — Validating your info")
+if STUDENT_NAME in ("", "Your Full Name"): errors.append("STUDENT_NAME not filled in"); err("STUDENT_NAME not filled in")
+else: ok(f"Name:  {STUDENT_NAME}")
+if "@" not in STUDENT_EMAIL or STUDENT_EMAIL == "your@email.com": errors.append("STUDENT_EMAIL invalid"); err("STUDENT_EMAIL is not valid")
+else: ok(f"Email: {STUDENT_EMAIL}")
+if COMPETITION_ID in ("", "COMP_001"): warn(f"COMPETITION_ID='{COMPETITION_ID}' — confirm with lecturer")
+else: ok(f"Comp:  {COMPETITION_ID}")
+ok(f"Model: {MODEL_NAME}")
+
+section("STEP 2 / 5 — Building predictions DataFrame")
+submission_df = None
+if MY_PREDICTIONS is None:
+    errors.append("MY_PREDICTIONS is None"); err("Set MY_PREDICTIONS to your predictions variable")
+elif isinstance(MY_PREDICTIONS, pd.DataFrame):
+    df = MY_PREDICTIONS.copy(); df.columns = [c.strip().lower() for c in df.columns]
+    if "predicted_label" not in df.columns and "prediction" in df.columns:
+        df.rename(columns={"prediction":"predicted_label"}, inplace=True)
+    if "predicted_label" not in df.columns: errors.append("DataFrame needs 'predicted_label' column"); err("DataFrame needs 'predicted_label' column")
+    else:
+        if "row_id" not in df.columns: df.insert(0,"row_id",range(1,len(df)+1)); warn("No row_id — auto-numbered from 1")
+        submission_df = df[["row_id","predicted_label"]].copy(); ok(f"DataFrame: {len(submission_df)} rows")
+else:
+    preds = np.array(MY_PREDICTIONS).flatten(); ok(f"Array: {len(preds)} predictions")
+    if MY_TEST_DF is not None:
+        idx = MY_TEST_DF.index if hasattr(MY_TEST_DF,"index") else range(len(preds))
+        if len(preds) != len(idx): errors.append(f"Length mismatch: {len(preds)} preds vs {len(idx)} rows"); err(f"Mismatch: {len(preds)} preds vs {len(idx)} test rows")
+        else: submission_df = pd.DataFrame({"row_id":list(idx),"predicted_label":preds}); ok(f"Matched {len(submission_df)} rows to test index")
+    else: submission_df = pd.DataFrame({"row_id":range(1,len(preds)+1),"predicted_label":preds}); warn("MY_TEST_DF not set — row_id auto-numbered")
+
+section("STEP 3 / 5 — Auto-detecting confidence scores")
+_proba = None
+for _n,_o in list(globals().items()):
+    if _n.startswith("_"): continue
+    if isinstance(_o,np.ndarray) and _o.ndim==2:
+        if submission_df is not None and _o.shape[0]==len(submission_df):
+            _proba=_o; info(f"Found prob array '{_n}' {_o.shape}"); break
+if _proba is not None and submission_df is not None:
+    submission_df["confidence"]=np.round(_proba.max(axis=1),4); ok("Confidence from predict_proba")
+elif submission_df is not None:
+    submission_df["confidence"]=1.0; warn("No proba array found — confidence=1.0")
+
+section("STEP 4 / 5 — Code mastery columns")
+_valid={"k-fold","stratified","hold-out","none"}
+if FEATURE_COUNT<=0: warn("FEATURE_COUNT=0 — set it to earn marks")
+else: ok(f"Features: {FEATURE_COUNT}")
+if PREPROCESSING_STEPS in ("","normalize+dropna"): warn("PREPROCESSING_STEPS is default — update it")
+else: ok(f"Preprocessing: {PREPROCESSING_STEPS}")
+if VALIDATION_STRATEGY.lower() not in _valid: errors.append(f"VALIDATION_STRATEGY invalid"); err(f"VALIDATION_STRATEGY must be: {', '.join(_valid)}")
+else: ok(f"Validation: {VALIDATION_STRATEGY}")
+ok(f"Cross-val: {USED_CROSS_VALIDATION}  |  Class imbalance: {HANDLED_CLASS_IMBALANCE}  |  Split: {TRAIN_TEST_SPLIT_RATIO}")
+_filled=sum([1,1 if MODEL_NAME else 0,1 if PREPROCESSING_STEPS not in ("","normalize+dropna") else 0,1 if FEATURE_COUNT>0 else 0,1 if VALIDATION_STRATEGY.lower() in _valid else 0,1,1,1 if 0<TRAIN_TEST_SPLIT_RATIO<1 else 0])
+info(f"Code mastery: {_filled}/8 → ~{round(_filled/8*100)}% code score")
+if submission_df is not None:
+    submission_df["model_name"]=MODEL_NAME; submission_df["preprocessing_steps"]=PREPROCESSING_STEPS
+    submission_df["feature_count"]=FEATURE_COUNT; submission_df["validation_strategy"]=VALIDATION_STRATEGY
+    submission_df["used_cross_validation"]=USED_CROSS_VALIDATION; submission_df["handled_class_imbalance"]=HANDLED_CLASS_IMBALANCE
+    submission_df["train_test_split_ratio"]=TRAIN_TEST_SPLIT_RATIO
+
+section("STEP 5 / 5 — Final validation and saving")
+if errors:
+    print(f"\\n  ✗  BLOCKED — fix errors above and re-run:")
+    for e in errors: err(e)
+    raise SystemExit("Fix errors and re-run.")
+
+_nc=submission_df["predicted_label"].isna().sum(); _ec=(submission_df["predicted_label"].astype(str).str.strip()=="").sum()
+if _nc>0: warn(f"{_nc} NaN predictions — will score 0")
+if _ec>0: warn(f"{_ec} empty predictions — will score 0")
+info("Distribution:"); _d=submission_df["predicted_label"].value_counts()
+for _l,_c in _d.items(): print(f"      {str(_l):<25} {_c:>5} ({_c/len(submission_df)*100:.1f}%)")
+
+_fn=f"submission_{STUDENT_NAME.lower().replace(' ','_')}_{COMPETITION_ID.lower().replace(' ','_')}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+_ck=hashlib.sha256(submission_df.to_csv(index=False).encode()).hexdigest()[:12]
+submission_df.to_csv(_fn,index=False)
+ok(f"Saved: {_fn}"); ok(f"Rows: {len(submission_df)}"); ok(f"SHA256: {_ck}")
+print(f"""
+{'═'*55}
+  SUBMISSION READY
+{'═'*55}
+  Student : {STUDENT_NAME}
+  Email   : {STUDENT_EMAIL}
+  Comp    : {COMPETITION_ID}
+  File    : {_fn}
+  SHA256  : {_ck}
+
+  Upload {_fn} on the VAF ML Club leaderboard.
+{'═'*55}
+""")`
 
   const [saving,  setSaving]  = useState(false)
   const [success, setSuccess] = useState('')
