@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Menu, X, Home, Info, Briefcase, Users,
-  Mail, ChevronRight, Sun, Moon, Zap, Microscope, FileType, Trophy, ClipboardList, UserPlus
+  Mail, ChevronRight, Sun, Moon, Zap, Microscope, FileType, Trophy, ClipboardList, UserPlus, Camera
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTheme } from 'next-themes'
@@ -17,8 +17,8 @@ const navItems = [
   { name: 'Projects',         href: '/projects',      icon: Briefcase    },
   { name: 'QR Engine',        href: '/qr-engine',     icon: Zap          },
   { name: 'Intelligence Lab', href: '/lab',           icon: Microscope   },
+  { name: 'Gallery',          href: '/gallery',       icon: Camera       },
   { name: 'Team',             href: '/#team',         icon: Users        },
-  { name: 'Contact',          href: '/#contact',      icon: Mail         },
 ]
 
 // Items that get the highlighted emerald style

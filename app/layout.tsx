@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ThemeProvider } from '@/components/theme-provider'
 import { CookieBanner } from '@/components/cookie-banner'
+import { AIChatbot } from '@/components/ai-chatbot'   // ← NEW
 import Script from 'next/script'
 import './globals.css'
 
@@ -53,10 +54,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* ── AdSense verification meta tag ── */}
         <meta name="google-adsense-account" content="ca-pub-6727162627172885" />
-
-        {/* ── Google AdSense script ── */}
         <script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6727162627172885"
@@ -75,10 +73,7 @@ export default function RootLayout({
           <Analytics />
 
           {/* ── Google Analytics 4 ── */}
-          <Script
-            src="https://www.googletagmanager.com/gtag/js?id=G-RE59R799HT"
-            strategy="afterInteractive"
-          />
+          <Script src="https://www.googletagmanager.com/gtag/js?id=G-RE59R799HT" strategy="afterInteractive" />
           <Script id="google-analytics" strategy="afterInteractive">
             {`
               window.dataLayer = window.dataLayer || [];
@@ -88,7 +83,7 @@ export default function RootLayout({
             `}
           </Script>
 
-          {/* ── Schema Markup moved here to avoid SSR hydration conflict ── */}
+          {/* ── Schema Markup ── */}
           <Script id="schema-org" type="application/ld+json" strategy="afterInteractive">
             {JSON.stringify({
               "@context": "https://schema.org",
@@ -97,19 +92,15 @@ export default function RootLayout({
               "url": "https://vaf-ubwenge-tech.vercel.app",
               "logo": "https://vaf-ubwenge-tech.vercel.app/vaf-logo.png",
               "description": "Student-led AI and logistics startup in Kigali, Rwanda building Easy GO and the Intelligence Lab.",
-              "foundingLocation": {
-                "@type": "Place",
-                "name": "Kigali, Rwanda"
-              },
-              "contactPoint": {
-                "@type": "ContactPoint",
-                "contactType": "customer support",
-                "email": "support@wandaatech.rw"
-              }
+              "foundingLocation": { "@type": "Place", "name": "Kigali, Rwanda" },
+              "contactPoint": { "@type": "ContactPoint", "contactType": "customer support", "email": "support@wandaatech.rw" }
             })}
           </Script>
 
           <CookieBanner />
+
+          {/* ── AI Chatbot — appears on every page ── */}
+          <AIChatbot />
         </ThemeProvider>
       </body>
     </html>
