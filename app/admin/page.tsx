@@ -98,6 +98,11 @@ export default function AdminPage() {
 
   // Notebook cell
   const [cellCopied, setCellCopied] = useState(false)
+
+  // Truth file upload
+  const [truthFile,         setTruthFile]         = useState<File | null>(null)
+  const [truthUploadStatus, setTruthUploadStatus] = useState('')
+  const [copiedId,          setCopiedId]           = useState<string | null>(null)
   const NOTEBOOK_CELL = `# ============================================================
 # VAF ML CLUB — SUBMISSION CELL
 # Place this cell at the BOTTOM of your notebook.
@@ -304,6 +309,8 @@ print(f"""
       dataset_url: '', rules: '', prize: '',
       tags: '', deadline: '', status: 'open', participants: 0,
     })
+    setTruthFile(null)
+    setTruthUploadStatus('')
     setShowCompForm(true)
   }
 
@@ -321,6 +328,8 @@ print(f"""
       status:      c.status,
       participants: c.participants,
     })
+    setTruthFile(null)
+    setTruthUploadStatus('')
     setShowCompForm(true)
   }
 
@@ -331,18 +340,73 @@ print(f"""
       ...compForm,
       tags: compForm.tags.split(',').map(t => t.trim()).filter(Boolean),
     }
+
+    let competitionId = editingComp?.id ?? null
     let err
+
     if (editingComp) {
       const res = await supabase.from('competitions').update(payload).eq('id', editingComp.id)
       err = res.error
     } else {
-      const res = await supabase.from('competitions').insert(payload)
+      const res = await supabase.from('competitions').insert(payload).select('id').single()
       err = res.error
+      if (!err && res.data) competitionId = res.data.id
     }
+
+    if (err) { setSaving(false); flash(err.message, true); return }
+
+    // Upload truth CSV if provided
+    if (truthFile && competitionId) {
+      setTruthUploadStatus('Parsing truth CSV…')
+      try {
+        const text = await truthFile.text()
+        const lines = text.trim().split('\n').filter(Boolean)
+        const header = lines[0].split(',').map(s => s.trim().toLowerCase())
+        const labelCol = header.findIndex(h => h.includes('label') || h.includes('result') || h.includes('pass') || h.includes('true') || h === header[1])
+
+        const rows = lines.slice(1).map((line, idx) => {
+          const cols = line.split(',').map(s => s.trim())
+          const rawLabel = cols[labelCol] ?? cols[1] ?? ''
+          // Normalise: Pass→pass, Fail→fail, 1→pass, 0→fail
+          let true_label = rawLabel.toLowerCase()
+          if (true_label === '1') true_label = 'pass'
+          if (true_label === '0') true_label = 'fail'
+          return {
+            row_id:         String(idx),
+            true_label,
+            competition_id: competitionId,
+            difficulty_tier: 'easy',
+            adversarial:    false,
+            column_weight:  1.0,
+          }
+        })
+
+        setTruthUploadStatus(`Inserting ${rows.length} ground-truth rows…`)
+
+        // Call server-side API route — uses service role key, bypasses RLS
+        const res = await fetch('/api/admin-upload-truth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ competition_id: competitionId, rows }),
+        })
+        const result = await res.json()
+        if (!res.ok) {
+          flash(`Competition saved but truth upload failed: ${result.error}`, true)
+        } else {
+          setTruthUploadStatus(`✓ ${rows.length} rows inserted`)
+          flash(`Competition saved + ${rows.length} truth rows uploaded!`)
+        }
+      } catch (e: any) {
+        flash(`Competition saved but CSV parse failed: ${e.message}`, true)
+      }
+    } else {
+      flash(editingComp ? 'Competition updated!' : 'Competition created!')
+    }
+
     setSaving(false)
-    if (err) { flash(err.message, true); return }
-    flash(editingComp ? 'Competition updated!' : 'Competition created!')
     setShowCompForm(false)
+    setTruthFile(null)
+    setTruthUploadStatus('')
     loadAll()
   }
 
@@ -651,6 +715,39 @@ print(f"""
                     />
                   </div>
 
+                  {/* Truth CSV upload */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                      Ground Truth CSV <span className="text-emerald-500">(required for scoring)</span>
+                    </label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Upload your truth file — any CSV where the first column is the row ID and the second column has the labels (Pass/Fail or 1/0). This gets auto-inserted into the database. Nobody can see it.
+                    </p>
+                    <label className="flex items-center gap-3 px-4 py-3 bg-black/20 border-2 border-dashed border-emerald-500/30 hover:border-emerald-500/60 rounded-xl cursor-pointer transition-all group">
+                      <FileText className="w-5 h-5 text-emerald-500/60 group-hover:text-emerald-400 shrink-0" />
+                      <span className="text-sm text-muted-foreground group-hover:text-foreground truncate">
+                        {truthFile ? truthFile.name : 'Click to choose truth.csv'}
+                      </span>
+                      <input
+                        type="file"
+                        accept=".csv"
+                        className="hidden"
+                        onChange={(e) => {
+                          setTruthFile(e.target.files?.[0] ?? null)
+                          setTruthUploadStatus('')
+                        }}
+                      />
+                    </label>
+                    {truthFile && (
+                      <p className="text-xs text-emerald-400 flex items-center gap-1.5">
+                        <CheckCircle className="w-3 h-3" /> {truthFile.name} ready — will be uploaded on save
+                      </p>
+                    )}
+                    {truthUploadStatus && (
+                      <p className="text-xs text-sky-400">{truthUploadStatus}</p>
+                    )}
+                  </div>
+
                   <button
                     onClick={saveComp}
                     disabled={saving}
@@ -689,6 +786,24 @@ print(f"""
                       <span className="text-xs text-muted-foreground">
                         Deadline: {new Date(c.deadline).toLocaleDateString()}
                       </span>
+                    </div>
+                    {/* UUID row */}
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      <span className="text-[10px] font-mono text-muted-foreground/60 truncate max-w-[260px]">{c.id}</span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(c.id)
+                          setCopiedId(c.id)
+                          setTimeout(() => setCopiedId(null), 2000)
+                        }}
+                        className="text-muted-foreground hover:text-emerald-400 transition-colors shrink-0"
+                        title="Copy competition ID"
+                      >
+                        {copiedId === c.id
+                          ? <CheckCircle className="w-3 h-3 text-emerald-400" />
+                          : <Copy className="w-3 h-3" />
+                        }
+                      </button>
                     </div>
                   </div>
                   <div className="flex gap-2 shrink-0">

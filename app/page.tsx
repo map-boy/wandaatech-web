@@ -31,7 +31,7 @@ export default function Home() {
               </p>
             </div>
             <Link
-              href="/leaderboard"
+              href="/competitions?tab=leaderboard"
               className="px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95 whitespace-nowrap uppercase tracking-tight"
             >
               Join the Competition →
