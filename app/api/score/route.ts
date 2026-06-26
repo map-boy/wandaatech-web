@@ -51,110 +51,128 @@ export async function POST(req: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        // ── 1. Validate inputs ──────────────────────────────────────────
+        // ── 1. Validate basic inputs ──────────────────────────────────────
         if (!file || !username || !modelName) {
           send(controller, { message: 'Missing file, username, or model name.' })
           controller.close(); return
         }
 
-        // ── 2. Check daily submission limit ─────────────────────────────
+        // ── 2. Check daily submission limit ───────────────────────────────
         if (competitionId) {
-          const { data: comp } = await supabase
-            .from('competitions')
-            .select('max_submissions_per_day')
-            .eq('id', competitionId)
-            .single()
+          try {
+            const { data: comp } = await supabase
+              .from('competitions')
+              .select('max_submissions_per_day')
+              .eq('id', competitionId)
+              .single()
 
-          if (comp?.max_submissions_per_day) {
-            const today = new Date(); today.setHours(0, 0, 0, 0)
-            const { count } = await supabase
-              .from('submissions')
-              .select('*', { count: 'exact', head: true })
-              .eq('username', username)
-              .eq('competition_id', competitionId)
-              .gte('created_at', today.toISOString())
+            if (comp?.max_submissions_per_day) {
+              const today = new Date(); today.setHours(0, 0, 0, 0)
+              const { count } = await supabase
+                .from('submissions')
+                .select('*', { count: 'exact', head: true })
+                .eq('username', username)
+                .eq('competition_id', competitionId)
+                .gte('created_at', today.toISOString())
 
-            if ((count ?? 0) >= comp.max_submissions_per_day) {
-              send(controller, {
-                message: `Daily submission limit reached (${comp.max_submissions_per_day}/day). Come back tomorrow.`
-              })
-              controller.close(); return
+              if ((count ?? 0) >= comp.max_submissions_per_day) {
+                send(controller, {
+                  message: `Daily submission limit reached (${comp.max_submissions_per_day}/day). Come back tomorrow.`
+                })
+                controller.close(); return
+              }
+
+              const remaining = comp.max_submissions_per_day - (count ?? 0) - 1
+              send(controller, { step: `✓ Submission limit OK — ${remaining} more allowed today` })
             }
-
-            const remaining = comp.max_submissions_per_day - (count ?? 0) - 1
-            send(controller, { step: `✓ Submission limit OK — ${remaining} more allowed today` })
+          } catch {
+            // limit check failed silently — allow submission through
           }
         }
 
+        // ── 3. Parse CSV ───────────────────────────────────────────────────
         send(controller, { step: '✓ File received — parsing CSV...' })
         const csvText    = await file.text()
         const submission = parseCSV(csvText)
+        const headers    = submission.length > 0 ? Object.keys(submission[0]) : []
+
+        const hasRowId         = headers.includes('row_id')
+        const hasPredictedLabel = headers.includes('predicted_label')
 
         if (submission.length === 0) {
-          send(controller, { message: 'CSV is empty or has no data rows.' })
-          controller.close(); return
+          send(controller, { step: '⚠ CSV is empty — will score as 0%' })
+        } else if (!hasRowId || !hasPredictedLabel) {
+          send(controller, { step: `⚠ CSV missing columns (need row_id + predicted_label) — accuracy will be 0%` })
+        } else {
+          send(controller, { step: `✓ Parsed ${submission.length} rows` })
         }
 
-        const headers = Object.keys(submission[0])
-        if (!headers.includes('row_id') || !headers.includes('predicted_label')) {
-          send(controller, { message: 'CSV must have "row_id" and "predicted_label" columns.' })
-          controller.close(); return
-        }
-
-        send(controller, { step: `✓ Parsed ${submission.length} rows` })
-
-        // ── 3. Load ground truth ────────────────────────────────────────
+        // ── 4. Load ground truth ───────────────────────────────────────────
         send(controller, { step: '✓ Loading ground truth from database...' })
-        let gtQuery = supabase.from('ground_truth').select('*')
-        if (competitionId) gtQuery = gtQuery.eq('competition_id', competitionId)
-
-        const { data: groundTruth, error: gtError } = await gtQuery
-        if (gtError || !groundTruth || groundTruth.length === 0) {
-          send(controller, { message: 'Ground truth not found. Ask your lecturer to upload it.' })
-          controller.close(); return
+        let groundTruth: GroundTruthRow[] = []
+        try {
+          let gtQuery = supabase.from('ground_truth').select('*')
+          if (competitionId) gtQuery = gtQuery.eq('competition_id', competitionId)
+          const { data } = await gtQuery
+          groundTruth = (data ?? []) as GroundTruthRow[]
+          if (groundTruth.length === 0) {
+            send(controller, { step: '⚠ No ground truth found — accuracy and F1 will be 0%' })
+          } else {
+            send(controller, { step: `✓ Ground truth loaded — ${groundTruth.length} rows` })
+          }
+        } catch {
+          send(controller, { step: '⚠ Could not load ground truth — accuracy will be 0%' })
         }
-        send(controller, { step: `✓ Ground truth loaded — ${groundTruth.length} rows` })
 
-        // ── 4. Load competition config ──────────────────────────────────
+        // ── 5. Load competition config ──────────────────────────────────────
         let compConfig = {
-          maxScoreCap: 92.0,
-          weightAccuracy: 0.45,
-          weightF1: 0.30,
-          weightCode: 0.25,
+          maxScoreCap:      92.0,
+          weightAccuracy:   0.45,
+          weightF1:         0.30,
+          weightCode:       0.25,
           adversarialBonus: 2.0,
           diffWeights: { easy: 1.0, medium: 1.5, hard: 2.0 },
         }
         if (competitionId) {
-          const { data: comp } = await supabase
-            .from('competitions')
-            .select('max_score_cap,weight_accuracy,weight_f1,weight_code,adversarial_bonus,diff_weight_easy,diff_weight_medium,diff_weight_hard')
-            .eq('id', competitionId)
-            .single()
-          if (comp) {
-            compConfig = {
-              maxScoreCap:      comp.max_score_cap      ?? compConfig.maxScoreCap,
-              weightAccuracy:   comp.weight_accuracy    ?? compConfig.weightAccuracy,
-              weightF1:         comp.weight_f1          ?? compConfig.weightF1,
-              weightCode:       comp.weight_code        ?? compConfig.weightCode,
-              adversarialBonus: comp.adversarial_bonus  ?? compConfig.adversarialBonus,
-              diffWeights: {
-                easy:   comp.diff_weight_easy   ?? 1.0,
-                medium: comp.diff_weight_medium ?? 1.5,
-                hard:   comp.diff_weight_hard   ?? 2.0,
-              },
+          try {
+            const { data: comp } = await supabase
+              .from('competitions')
+              .select('max_score_cap,weight_accuracy,weight_f1,weight_code,adversarial_bonus,diff_weight_easy,diff_weight_medium,diff_weight_hard')
+              .eq('id', competitionId)
+              .single()
+            if (comp) {
+              compConfig = {
+                maxScoreCap:      comp.max_score_cap      ?? compConfig.maxScoreCap,
+                weightAccuracy:   comp.weight_accuracy    ?? compConfig.weightAccuracy,
+                weightF1:         comp.weight_f1          ?? compConfig.weightF1,
+                weightCode:       comp.weight_code        ?? compConfig.weightCode,
+                adversarialBonus: comp.adversarial_bonus  ?? compConfig.adversarialBonus,
+                diffWeights: {
+                  easy:   comp.diff_weight_easy   ?? 1.0,
+                  medium: comp.diff_weight_medium ?? 1.5,
+                  hard:   comp.diff_weight_hard   ?? 2.0,
+                },
+              }
             }
+          } catch {
+            // use defaults
           }
         }
 
-        // ── 5. Build lookup maps ────────────────────────────────────────
+        // ── 6. Build lookup maps ────────────────────────────────────────────
         send(controller, { step: '✓ Matching predictions to ground truth...' })
+
         const gtMap = new Map<string, GroundTruthRow>()
-        for (const row of groundTruth as GroundTruthRow[]) gtMap.set(row.row_id, row)
+        for (const row of groundTruth) gtMap.set(row.row_id, row)
 
         const subMap = new Map<string, string>()
-        for (const row of submission) subMap.set(row.row_id, row.predicted_label?.toLowerCase() ?? '')
+        if (hasRowId && hasPredictedLabel) {
+          for (const row of submission) {
+            subMap.set(row.row_id, row.predicted_label?.toLowerCase() ?? '')
+          }
+        }
 
-        // ── 6. Score accuracy (weighted by difficulty) ──────────────────
+        // ── 7. Score accuracy (weighted by difficulty) ──────────────────────
         send(controller, { step: '✓ Calculating weighted accuracy...' })
         let totalWeight       = 0
         let earnedWeight      = 0
@@ -164,32 +182,36 @@ export async function POST(req: NextRequest) {
         const feedback:       string[] = []
         const rowResults:     object[] = []
 
-        for (const gt of groundTruth as GroundTruthRow[]) {
+        for (const gt of groundTruth) {
           const predicted = subMap.get(gt.row_id)
-          const correct   = predicted === gt.true_label.toLowerCase()
-          const w         = compConfig.diffWeights[gt.difficulty_tier] * gt.column_weight
+          const correct   = predicted !== undefined && predicted === gt.true_label.toLowerCase()
+          const w         = (compConfig.diffWeights[gt.difficulty_tier] ?? 1.0) * (gt.column_weight ?? 1.0)
 
           if (gt.adversarial) {
             if (correct) adversarialBonus += compConfig.adversarialBonus
           } else {
-            totalWeight  += w
+            totalWeight += w
             if (correct) earnedWeight += w
           }
 
-          if (predicted !== undefined) {
-            classActual.push(gt.true_label.toLowerCase())
-            classPredicted.push(predicted)
-          } else {
-            feedback.push(`Row ${gt.row_id}: missing — prediction not found`)
-          }
+          // always count this row for F1 — a missing prediction is wrong,
+          // not invisible to the metric (fixes the "skip hard rows to
+          // inflate F1" exploit)
+          classActual.push(gt.true_label.toLowerCase())
+          classPredicted.push(predicted ?? '__missing__')
 
-          rowResults.push({ row_id: gt.row_id, correct, predicted: predicted ?? 'MISSING', true: gt.true_label })
+          rowResults.push({
+            row_id:    gt.row_id,
+            correct,
+            predicted: predicted ?? 'MISSING',
+            true:      gt.true_label,
+          })
         }
 
         const accuracyScore = totalWeight > 0 ? (earnedWeight / totalWeight) * 100 : 0
         send(controller, { step: `✓ Accuracy: ${accuracyScore.toFixed(1)}%` })
 
-        // ── 7. Score F1 (macro-averaged) ────────────────────────────────
+        // ── 8. Score F1 (macro-averaged) ─────────────────────────────────────
         send(controller, { step: '✓ Calculating macro F1 score...' })
         const classes     = [...new Set(classActual)]
         const perClassF1: Record<string, number> = {}
@@ -208,70 +230,77 @@ export async function POST(req: NextRequest) {
           : 0
         send(controller, { step: `✓ Macro F1: ${f1Score.toFixed(1)}%` })
 
-        // ── 8. Score code mastery ────────────────────────────────────────
+        // ── 9. Score code mastery ────────────────────────────────────────────
         send(controller, { step: '✓ Auditing code mastery columns...' })
-        const presentCols  = CODE_MASTERY_COLUMNS.filter((c) => headers.includes(c))
-        const missingCols  = CODE_MASTERY_COLUMNS.filter((c) => !headers.includes(c))
-        const codeScore    = (presentCols.length / CODE_MASTERY_COLUMNS.length) * 100
-        const columnAudit  = { present: presentCols, missing: missingCols }
+        const presentCols = CODE_MASTERY_COLUMNS.filter((c) => headers.includes(c))
+        const missingCols = CODE_MASTERY_COLUMNS.filter((c) => !headers.includes(c))
+        const codeScore   = (presentCols.length / CODE_MASTERY_COLUMNS.length) * 100
+        const columnAudit = { present: presentCols, missing: missingCols }
 
         if (missingCols.length > 0) {
-          feedback.push(`Code columns missing: ${missingCols.join(', ')} — add these to improve your code score`)
+          feedback.push(`Add these columns to improve your code score: ${missingCols.join(', ')}`)
         }
         send(controller, { step: `✓ Code mastery: ${codeScore.toFixed(1)}% (${presentCols.length}/${CODE_MASTERY_COLUMNS.length} columns)` })
 
-        // ── 9. Composite score + cap ─────────────────────────────────────
+        // ── 10. Composite score + cap ─────────────────────────────────────────
         send(controller, { step: '✓ Calculating final weighted score...' })
         const composite = (
-          accuracyScore  * compConfig.weightAccuracy +
-          f1Score        * compConfig.weightF1 +
-          codeScore      * compConfig.weightCode
+          accuracyScore * compConfig.weightAccuracy +
+          f1Score       * compConfig.weightF1 +
+          codeScore     * compConfig.weightCode
         ) + adversarialBonus
 
         const finalScore = Math.min(composite, compConfig.maxScoreCap)
-        feedback.push(`Score capped at ${compConfig.maxScoreCap}% — by design, no one gets 100%.`)
-        if (adversarialBonus > 0) feedback.push(`Adversarial bonus: +${adversarialBonus.toFixed(1)} pts`)
+        feedback.push(`Score cap is ${compConfig.maxScoreCap}% — by design, nobody gets 100%.`)
+        if (adversarialBonus > 0) {
+          feedback.push(`Adversarial bonus: +${adversarialBonus.toFixed(1)} pts`)
+        }
+        if (accuracyScore === 0 && groundTruth.length === 0) {
+          feedback.push('Accuracy is 0% because no ground truth has been uploaded yet — resubmit after your lecturer uploads it.')
+        }
         send(controller, { step: `✓ Final score: ${finalScore.toFixed(1)}% (cap: ${compConfig.maxScoreCap}%)` })
 
-        // ── 10. Lookup registration ──────────────────────────────────────
-        const { data: registration } = await supabase
-          .from('registrations')
-          .select('id, group_id, team_name')
-          .eq('display_name', username)
-          .maybeSingle()
+        // ── 11. Lookup registration ───────────────────────────────────────────
+        let registration: { id: string; group_id: string | null; team_name: string | null } | null = null
+        try {
+          const { data } = await supabase
+            .from('registrations')
+            .select('id, group_id, team_name')
+            .eq('display_name', username)
+            .maybeSingle()
+          registration = data
+        } catch {
+          // proceed without registration
+        }
 
-        // ── 11. Save submission ──────────────────────────────────────────
+        // ── 12. Save submission ───────────────────────────────────────────────
         send(controller, { step: '✓ Saving results to database...' })
-        const { error: saveError } = await supabase.from('submissions').insert({
-          competition_id:    competitionId,
-          registration_id:   registration?.id ?? null,
-          username,
-          group_id:          registration?.group_id ?? null,
-          accuracy_score:    Math.round(accuracyScore  * 10) / 10,
-          f1_score:          Math.round(f1Score         * 10) / 10,
-          code_score:        Math.round(codeScore       * 10) / 10,
-          composite_raw:     Math.round(composite       * 10) / 10,
-          final_score:       Math.round(finalScore      * 10) / 10,
-          adversarial_bonus: adversarialBonus,
-          model_name:        modelName,
-          per_class_f1:      perClassF1,
-          column_audit:      columnAudit,
-          feedback,
-          row_results:       rowResults,
-        })
-
-        if (saveError) {
-          feedback.push(`Warning: score calculated but failed to save — ${saveError.message}`)
-          send(controller, { step: `❌ SAVE ERROR: ${saveError.message}` })
-      } else {
+        try {
+          await supabase.from('submissions').insert({
+            competition_id:    competitionId,
+            registration_id:   registration?.id ?? null,
+            username,
+            group_id:          registration?.group_id ?? null,
+            accuracy_score:    Math.round(accuracyScore  * 10) / 10,
+            f1_score:          Math.round(f1Score         * 10) / 10,
+            code_score:        Math.round(codeScore       * 10) / 10,
+            composite_raw:     Math.round(composite       * 10) / 10,
+            final_score:       Math.round(finalScore      * 10) / 10,
+            adversarial_bonus: adversarialBonus,
+            model_name:        modelName,
+            per_class_f1:      perClassF1,
+            column_audit:      columnAudit,
+            feedback,
+            row_results:       rowResults,
+          })
           send(controller, { step: '✓ Saved to database successfully' })
-    }
-        
-        
+        } catch {
+          send(controller, { step: '⚠ Score calculated but could not save to database — try resubmitting' })
+        }
 
         send(controller, { step: '✓ Complete! Results on leaderboard.' })
 
-        // ── 12. Return final result ──────────────────────────────────────
+        // ── 13. Return final result ───────────────────────────────────────────
         send(controller, {
           finalScore:  Math.round(finalScore    * 10) / 10,
           accuracy:    Math.round(accuracyScore * 10) / 10,
@@ -283,7 +312,17 @@ export async function POST(req: NextRequest) {
         })
 
       } catch (err: any) {
-        send(controller, { message: `Scorer error: ${err.message}` })
+        // Last-resort catch — still try to return a 0-score result so the UI doesn't hang
+        send(controller, { step: `⚠ Unexpected error: ${err.message}` })
+        send(controller, {
+          finalScore: 0,
+          accuracy:   0,
+          f1:         0,
+          codeScore:  0,
+          username,
+          modelName,
+          feedback:   [`Submission processed with errors: ${err.message}`],
+        })
       } finally {
         controller.close()
       }
@@ -294,7 +333,7 @@ export async function POST(req: NextRequest) {
     headers: {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+      'Connection':    'keep-alive',
     },
   })
 }

@@ -4,23 +4,26 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { supabase } from '@/lib/supabase'
 import {
-  Users, User, Mail, Plus, X,
+  Users, User, Mail, Lock, Plus, X,
   CheckCircle, AlertCircle, Loader2, Copy, Link2
 } from 'lucide-react'
-import { generateToken } from './types'
 
-export default function RegisterTab({ onRegistered, competitionId }: { onRegistered: (name: string) => void; competitionId?: string | null }) {
+export default function RegisterTab({ onRegistered, onGoLogin, competitionId }: {
+  onRegistered: (name: string) => void
+  onGoLogin?: () => void
+  competitionId?: string | null
+}) {
   const [type, setType]               = useState<'individual' | 'team' | null>(null)
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail]             = useState('')
+  const [password, setPassword]       = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [university, setUniversity]   = useState('')
   const [members, setMembers]         = useState<string[]>(['', ''])
   const [loading, setLoading]         = useState(false)
   const [error, setError]             = useState('')
   const [success, setSuccess]         = useState(false)
-  const [savedToken, setSavedToken]   = useState('')
   const [teamToken, setTeamToken]     = useState('')
   const [copied, setCopied]           = useState(false)
 
@@ -50,6 +53,8 @@ export default function RegisterTab({ onRegistered, competitionId }: { onRegiste
     if (!type)                                 { setError('Please select Individual or Team.'); return }
     if (!displayName.trim())                   { setError('Please enter your name.'); return }
     if (!email.trim() || !email.includes('@')) { setError('Please enter a valid email.'); return }
+    if (!password || password.length < 8)      { setError('Password must be at least 8 characters.'); return }
+    if (password !== confirmPassword)          { setError('Passwords do not match.'); return }
     if (!university.trim())                    { setError('Please enter your university or organization.'); return }
     if (type === 'team') {
       const filled = members.filter((m) => m.trim().length > 0)
@@ -57,40 +62,44 @@ export default function RegisterTab({ onRegistered, competitionId }: { onRegiste
     }
 
     setLoading(true)
-    const token  = generateToken()
-    const tToken = type === 'team' ? generateToken() : ''
-    const cleanMembers = type === 'team' ? members.filter((m) => m.trim().length > 0) : []
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type,
+          displayName: displayName.trim(),
+          email: email.trim(),
+          password,
+          university: university.trim(),
+          members: type === 'team' ? members.filter((m) => m.trim().length > 0) : [],
+          competitionId: competitionId || null,
+        }),
+      })
+      const data = await res.json()
 
-    const { error: dbError } = await supabase.from('registrations').insert({
-      type,
-      display_name: displayName.trim(),
-      email: email.trim().toLowerCase(),
-      university: university.trim(),
-      members: cleanMembers,
-      token,
-      team_token: tToken || null,
-      team_name:  type === 'team' ? displayName.trim() : null,
-      competition_id: competitionId || null,
-    })
+      if (!res.ok) {
+        setError(data.error || 'Registration failed.')
+        setLoading(false)
+        return
+      }
 
-    setLoading(false)
-    if (dbError) {
-      setError(dbError.message.includes('unique') ? 'This email is already registered.' : dbError.message)
-      return
+      localStorage.setItem('vaf_token', data.token)
+      localStorage.setItem('vaf_name', data.displayName)
+      localStorage.setItem('vaf_type', data.type)
+      if (type === 'team') {
+        localStorage.setItem('vaf_team', data.teamName)
+        localStorage.setItem('vaf_team_token', data.teamToken)
+      }
+
+      setTeamToken(data.teamToken || '')
+      setSuccess(true)
+      onRegistered(data.displayName)
+    } catch (e: any) {
+      setError(e.message || 'Something went wrong.')
+    } finally {
+      setLoading(false)
     }
-
-    localStorage.setItem('vaf_token', token)
-    localStorage.setItem('vaf_name', displayName.trim())
-    localStorage.setItem('vaf_type', type)
-    if (type === 'team') {
-      localStorage.setItem('vaf_team', displayName.trim())
-      localStorage.setItem('vaf_team_token', tToken)
-    }
-
-    setSavedToken(token)
-    setTeamToken(tToken)
-    setSuccess(true)
-    onRegistered(displayName.trim())
   }
 
   if (alreadyRegistered && !success) {
@@ -126,8 +135,8 @@ export default function RegisterTab({ onRegistered, competitionId }: { onRegiste
           )}
           <p className="text-xs text-muted-foreground">
             Using a different device?{' '}
-            <button onClick={() => { localStorage.clear(); window.location.reload() }} className="text-emerald-500 hover:underline">
-              Clear and re-register
+            <button onClick={onGoLogin} className="text-emerald-500 hover:underline">
+              Log in instead
             </button>
           </p>
         </div>
@@ -161,9 +170,8 @@ export default function RegisterTab({ onRegistered, competitionId }: { onRegiste
           </div>
         )}
         <div className="p-4 rounded-2xl bg-black/20 border border-emerald-500/20 text-left space-y-2">
-          <p className="text-xs font-bold text-emerald-500 uppercase tracking-widest">Your Access Token</p>
-          <p className="text-xs font-mono text-muted-foreground break-all">{savedToken}</p>
-          <p className="text-xs text-muted-foreground">Saved in your browser automatically.</p>
+          <p className="text-xs font-bold text-emerald-500 uppercase tracking-widest">You're Logged In</p>
+          <p className="text-xs text-muted-foreground">Use your email and password to log in from any device.</p>
         </div>
       </motion.div>
     )
@@ -208,6 +216,26 @@ export default function RegisterTab({ onRegistered, competitionId }: { onRegiste
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com"
                       className="w-full pl-11 pr-4 py-3 bg-black/20 dark:bg-black/40 border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground">Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Min 8 characters"
+                        className="w-full pl-11 pr-4 py-3 bg-black/20 dark:bg-black/40 border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground">Confirm Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Repeat password"
+                        className="w-full pl-11 pr-4 py-3 bg-black/20 dark:bg-black/40 border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
+                    </div>
                   </div>
                 </div>
                 <div className="space-y-1.5">
@@ -258,6 +286,13 @@ export default function RegisterTab({ onRegistered, competitionId }: { onRegiste
                 className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-black rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95 flex items-center justify-center gap-3 uppercase tracking-tight">
                 {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Registering...</> : <><CheckCircle className="w-5 h-5" /> Complete Registration</>}
               </button>
+
+              {onGoLogin && (
+                <p className="text-xs text-center text-muted-foreground">
+                  Already registered?{' '}
+                  <button onClick={onGoLogin} className="text-emerald-500 font-bold hover:underline">Log in instead</button>
+                </p>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

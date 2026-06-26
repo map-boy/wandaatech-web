@@ -66,7 +66,7 @@ export interface ScoreResult {
   feedback: string[]
 }
 
-export type Tab = 'challenges' | 'register' | 'leaderboard'
+export type Tab = 'challenges' | 'register' | 'leaderboard' | 'login'
 
 export const TAG_COLORS: Record<string, string> = {
   'Beginner Friendly': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',

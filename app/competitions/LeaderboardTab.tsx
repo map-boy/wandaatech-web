@@ -35,7 +35,6 @@ export default function LeaderboardTab({ isRegistered }: { isRegistered: boolean
   const [mySubmissions, setMySubmissions] = useState<SubmissionHistoryRow[]>([])
   const [liveFeed,      setLiveFeed]      = useState<LiveFeedItem[]>([])
 
-  // Store raw name separately so queries aren't broken by team suffix display
   const [displayName,   setDisplayName]   = useState('')
   const [rawName,       setRawName]       = useState('')
 
@@ -52,8 +51,9 @@ export default function LeaderboardTab({ isRegistered }: { isRegistered: boolean
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [innerTab,     setInnerTab]     = useState<InnerTab>('submit')
 
-  const fileRef  = useRef<HTMLInputElement>(null)
-  const stepsRef = useRef<HTMLDivElement>(null)
+  const fileRef      = useRef<HTMLInputElement>(null)
+  const stepsRef     = useRef<HTMLDivElement>(null)
+  const activeCompId = useRef<string>('')  // fix: track which comp is being fetched
 
   // ── Init ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -79,7 +79,6 @@ export default function LeaderboardTab({ isRegistered }: { isRegistered: boolean
     if (stepsRef.current) stepsRef.current.scrollTop = stepsRef.current.scrollHeight
   }, [steps])
 
-  // Reload leaderboard + my submissions whenever competition changes
   useEffect(() => {
     if (selectedComp) {
       fetchLeaderboard(selectedComp.id)
@@ -88,7 +87,6 @@ export default function LeaderboardTab({ isRegistered }: { isRegistered: boolean
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedComp, rawName])
 
-  // Re-fetch my submissions when switching to that tab
   useEffect(() => {
     if (innerTab === 'mine' && selectedComp && rawName) {
       fetchMySubmissions(selectedComp.id, rawName)
@@ -108,7 +106,9 @@ export default function LeaderboardTab({ isRegistered }: { isRegistered: boolean
     }
   }
 
+  // fix: discard stale responses when user switches competition quickly
   async function fetchLeaderboard(compId: string) {
+    activeCompId.current = compId
     setLbLoading(true)
     setLeaderboard([])
 
@@ -124,8 +124,10 @@ export default function LeaderboardTab({ isRegistered }: { isRegistered: boolean
       return
     }
 
+    // If user switched competition before this response arrived, discard it
+    if (activeCompId.current !== compId) return
+
     if (data && data.length > 0) {
-      // Keep only each user's best submission (data already sorted desc)
       const seen = new Set<string>()
       const best = (data as any[]).filter((row) => {
         if (seen.has(row.username)) return false
@@ -133,17 +135,17 @@ export default function LeaderboardTab({ isRegistered }: { isRegistered: boolean
         return true
       })
       setLeaderboard(best.map((r) => ({
-        id:            r.id,
-        username:      r.username,
-        team_name:     null,
-        model_name:    r.model_name,
-        accuracy:      Number(r.accuracy_score ?? 0),
-        f1_score:      Number(r.f1_score ?? 0),
-        code_score:    Number(r.code_score ?? 0),
-        final_score:   Number(r.final_score ?? 0),
-        submitted_at:  r.created_at,
+        id:             r.id,
+        username:       r.username,
+        team_name:      null,
+        model_name:     r.model_name,
+        accuracy:       Number(r.accuracy_score ?? 0),
+        f1_score:       Number(r.f1_score ?? 0),
+        code_score:     Number(r.code_score ?? 0),
+        final_score:    Number(r.final_score ?? 0),
+        submitted_at:   r.created_at,
         competition_id: r.competition_id,
-        group_id:      r.group_id,
+        group_id:       r.group_id,
       })))
     }
     setLbLoading(false)
@@ -153,7 +155,6 @@ export default function LeaderboardTab({ isRegistered }: { isRegistered: boolean
     if (!name || !compId) return
     setHistLoading(true)
 
-    // Try matching on raw name first; also try display name as fallback
     const { data } = await supabase
       .from('submissions')
       .select('id, username, model_name, accuracy_score, f1_score, code_score, final_score, created_at, competition_id, feedback')
@@ -164,7 +165,6 @@ export default function LeaderboardTab({ isRegistered }: { isRegistered: boolean
 
     if (data) setMySubmissions(data as SubmissionHistoryRow[])
 
-    // Count today's submissions for the limit badge
     const today = new Date(); today.setHours(0, 0, 0, 0)
     const { count } = await supabase
       .from('submissions')
@@ -262,10 +262,16 @@ export default function LeaderboardTab({ isRegistered }: { isRegistered: boolean
         }
       }
 
-      // Refresh data after successful submission
       await fetchLeaderboard(selectedComp.id)
       await fetchMySubmissions(selectedComp.id, rawName)
       setTodayCount((p) => p + 1)
+
+      // fix: clear the form after successful submission
+      setFile(null)
+      setModelName('')
+      setSteps([])
+      if (fileRef.current) fileRef.current.value = ''
+
       setInnerTab('leaderboard')
     } catch (err: any) {
       setError(err.message || 'Failed to connect to scoring engine.')
@@ -380,7 +386,7 @@ export default function LeaderboardTab({ isRegistered }: { isRegistered: boolean
                       className="w-full px-4 py-3 bg-black/20 dark:bg-black/40 border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all" />
                   </div>
 
-                  {/* CSV Drop Zone — full drag & drop support */}
+                  {/* CSV Drop Zone */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
                       Predictions CSV
@@ -416,7 +422,7 @@ export default function LeaderboardTab({ isRegistered }: { isRegistered: boolean
                           <p className="font-bold text-foreground">{file.name}</p>
                           <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
                           <button
-                            onClick={(e) => { e.stopPropagation(); setFile(null) }}
+                            onClick={(e) => { e.stopPropagation(); setFile(null); if (fileRef.current) fileRef.current.value = '' }}
                             className="text-xs text-red-400 hover:text-red-300 font-bold underline"
                           >
                             Remove file
@@ -610,7 +616,6 @@ export default function LeaderboardTab({ isRegistered }: { isRegistered: boolean
                           transition={{ delay: i * 0.04 }}
                           className={`transition-colors ${isMe ? 'bg-emerald-500/5' : 'hover:bg-white/5'}`}
                         >
-                          {/* Rank */}
                           <td className="py-3 pr-2 w-12">
                             {medal ? (
                               <span className="text-xl">{medal}</span>
@@ -620,26 +625,18 @@ export default function LeaderboardTab({ isRegistered }: { isRegistered: boolean
                               </span>
                             )}
                           </td>
-
-                          {/* Name */}
                           <td className="py-3 pr-4 font-bold text-foreground max-w-[140px]">
                             <span className="truncate block">{row.username}</span>
                             {isMe && (
                               <span className="inline-block mt-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-black">YOU</span>
                             )}
                           </td>
-
-                          {/* Model */}
                           <td className="py-3 pr-4 text-muted-foreground text-xs font-mono max-w-[120px]">
                             <span className="truncate block">{row.model_name}</span>
                           </td>
-
-                          {/* Scores */}
                           <td className="py-3 pr-4 text-foreground tabular-nums">{row.accuracy.toFixed(1)}%</td>
                           <td className="py-3 pr-4 text-foreground tabular-nums">{row.f1_score.toFixed(1)}%</td>
                           <td className="py-3 pr-4 text-foreground tabular-nums">{row.code_score.toFixed(1)}%</td>
-
-                          {/* Final Score — highlighted */}
                           <td className="py-3 pr-4">
                             <span className={`font-black tabular-nums ${
                               i === 0 ? 'text-yellow-400 text-base'
