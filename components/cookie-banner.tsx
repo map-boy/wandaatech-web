@@ -23,60 +23,25 @@ export function CookieBanner() {
   if (!visible) return null
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        zIndex: 9999,
-        background: '#0f172a',
-        borderTop: '1px solid #059669',
-        padding: '16px 24px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '16px',
-        flexWrap: 'wrap',
-        fontSize: '13px',
-        color: '#cbd5e1',
-      }}
-    >
+    <div className="skeuo-card fixed bottom-0 left-0 right-0 z-[9999] rounded-none px-6 py-4 flex items-center justify-between gap-4 flex-wrap text-[13px] text-muted-foreground">
       <span>
         We use cookies to improve your experience on our site.{' '}
-        <a href="/privacy" style={{ color: '#34d399', textDecoration: 'underline' }}>
+        <a href="/privacy" className="skeuo-glow-text underline">
           Privacy Policy
         </a>
       </span>
-      <div style={{ display: 'flex', gap: '8px' }}>
+      <div className="flex gap-2">
         <button
           onClick={decline}
-          style={{
-            background: 'transparent',
-            color: '#94a3b8',
-            fontSize: '13px',
-            borderRadius: '8px',
-            border: '1px solid #334155',
-            padding: '8px 16px',
-            cursor: 'pointer',
-          }}
+          className="skeuo-inset text-muted-foreground text-[13px] px-4 py-2"
         >
           Decline
         </button>
         <button
           onClick={accept}
-          style={{
-            background: '#059669',
-            color: '#ffffff',
-            fontSize: '13px',
-            fontWeight: 'bold',
-            borderRadius: '8px',
-            border: 'none',
-            padding: '8px 20px',
-            cursor: 'pointer',
-          }}
+          className="skeuo-button text-[13px] font-bold px-5 py-2"
         >
-          Accept All
+          <span className="skeuo-glow-text">Accept All</span>
         </button>
       </div>
     </div>

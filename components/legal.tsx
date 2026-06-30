@@ -14,25 +14,25 @@ export function LegalSubNav() {
   ]
 
   return (
-    <div className="flex flex-col sm:flex-row gap-4 items-center justify-center py-6 border-b border-border mb-12">
-      <div className="flex bg-muted/50 p-1 rounded-xl border border-border">
+    <div className="flex flex-col sm:flex-row gap-4 items-center justify-center py-6 mb-12">
+      <div className="flex skeuo-inset p-1 gap-1">
         {tabs.map((tab) => {
           const Icon = tab.icon
           const isActive = pathname === tab.href
-          
+
           return (
             <Link
               key={tab.href}
               href={tab.href}
               className={cn(
-                "flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all",
-                isActive 
-                  ? "bg-background text-emerald-500 shadow-sm border border-border/50" 
+                "flex items-center gap-2 px-6 py-2.5 text-sm font-medium transition-all rounded-lg",
+                isActive
+                  ? "skeuo-button"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <Icon className={cn("w-4 h-4", isActive ? "text-emerald-500" : "")} />
-              {tab.name}
+              <Icon className={cn("w-4 h-4", isActive ? "skeuo-glow-text" : "")} />
+              <span className={isActive ? "skeuo-glow-text" : ""}>{tab.name}</span>
             </Link>
           )
         })}

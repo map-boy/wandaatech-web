@@ -39,9 +39,9 @@ export function Header() {
       <div className="fixed top-6 left-6 z-[100]">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="p-3 bg-emerald-500 text-slate-950 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:scale-110 transition-transform active:scale-95"
+          className="skeuo-button p-3 hover:scale-110 transition-transform active:scale-95"
         >
-          {isOpen ? <X size={24} /> : <Menu size={24} />}
+          {isOpen ? <X size={24} className="skeuo-glow-text" /> : <Menu size={24} className="skeuo-glow-text" />}
         </button>
       </div>
 
@@ -63,40 +63,40 @@ export function Header() {
               animate={{ x: 0 }}
               exit={{ x: -300 }}
               transition={{ type: 'spring', damping: 20, stiffness: 100 }}
-              className="fixed top-0 left-0 h-full w-[280px] bg-white dark:bg-slate-950 border-r border-emerald-500/20 z-[90] p-6 pt-24 shadow-2xl flex flex-col"
+              className="skeuo-card fixed top-0 left-0 h-full w-[280px] z-[90] p-6 pt-24 rounded-none flex flex-col"
             >
               <div className="flex flex-col gap-2 flex-grow overflow-y-auto">
                 {/* Branding */}
                 <div className="mb-2 px-2">
-                  <h1 className="text-xl font-black text-slate-950 dark:text-white tracking-tighter uppercase">
-                    VAF UBWENGE <span className="text-emerald-500">TECH</span>
+                  <h1 className="text-xl font-black text-foreground tracking-tighter uppercase">
+                    VAF UBWENGE <span className="skeuo-glow-text">TECH</span>
                   </h1>
-                  <p className="text-[10px] text-emerald-500/50 font-mono uppercase tracking-widest mt-1">Intelligence Systems</p>
+                  <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-widest mt-1">Intelligence Systems</p>
                 </div>
 
                 {/* Theme Toggle */}
                 {mounted && (
-                  <div className="mb-6 mt-2 flex items-center justify-between p-2 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
-                    <span className="text-[10px] text-slate-500 font-mono uppercase ml-2">Theme</span>
+                  <div className="mb-6 mt-2 flex items-center justify-between skeuo-inset p-2">
+                    <span className="text-[10px] text-muted-foreground font-mono uppercase ml-2">Theme</span>
                     <div className="flex gap-1">
                       <button
                         onClick={() => setTheme('light')}
-                        className={`p-2 rounded-lg transition-all ${theme === 'light' ? 'bg-emerald-500 text-slate-950' : 'text-slate-500'}`}
+                        className={`p-2 rounded-lg transition-all ${theme === 'light' ? 'skeuo-button' : 'text-muted-foreground'}`}
                       >
-                        <Sun size={16} />
+                        <Sun size={16} className={theme === 'light' ? 'skeuo-glow-text' : ''} />
                       </button>
                       <button
                         onClick={() => setTheme('dark')}
-                        className={`p-2 rounded-lg transition-all ${theme === 'dark' ? 'bg-emerald-500 text-slate-950' : 'text-slate-500'}`}
+                        className={`p-2 rounded-lg transition-all ${theme === 'dark' ? 'skeuo-button' : 'text-muted-foreground'}`}
                       >
-                        <Moon size={16} />
+                        <Moon size={16} className={theme === 'dark' ? 'skeuo-glow-text' : ''} />
                       </button>
                     </div>
                   </div>
                 )}
 
                 {/* Navigation Items */}
-                <nav className="space-y-1">
+                <nav className="space-y-2">
                   {navItems.map((item) => {
                     const highlighted = HIGHLIGHTED.includes(item.name)
                     return (
@@ -104,35 +104,27 @@ export function Header() {
                         key={item.name}
                         href={item.href}
                         onClick={() => setIsOpen(false)}
-                        className={`flex items-center justify-between group px-4 py-4 rounded-xl transition-all border ${
-                          highlighted
-                            ? 'border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20'
-                            : 'border-transparent hover:bg-emerald-500/10 hover:border-emerald-500/20'
+                        className={`flex items-center justify-between group px-4 py-4 transition-all ${
+                          highlighted ? 'skeuo-button' : 'skeuo-inset hover:skeuo-button'
                         }`}
                       >
                         <div className="flex items-center gap-4">
                           <item.icon
                             size={20}
-                            className={`transition-colors ${
-                              highlighted
-                                ? 'text-emerald-500'
-                                : 'text-slate-400 group-hover:text-emerald-500'
-                            }`}
+                            className={highlighted ? 'skeuo-glow-text' : 'text-muted-foreground group-hover:skeuo-glow-text transition-colors'}
                           />
                           <span className={`text-sm font-bold uppercase tracking-tight transition-colors ${
-                            highlighted
-                              ? 'text-emerald-500'
-                              : 'text-slate-700 dark:text-slate-300 group-hover:text-emerald-500'
+                            highlighted ? 'skeuo-glow-text' : 'text-foreground/80 group-hover:skeuo-glow-text'
                           }`}>
                             {item.name}
                           </span>
                           {item.name === 'Competitions' && (
-                            <span className="text-[9px] font-black bg-emerald-500 text-white px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                            <span className="text-[9px] font-black skeuo-button px-1.5 py-0.5 uppercase tracking-wider">
                               New
                             </span>
                           )}
                         </div>
-                        <ChevronRight size={14} className="text-slate-600 group-hover:text-emerald-500 opacity-0 group-hover:opacity-100 transition-all" />
+                        <ChevronRight size={14} className="text-muted-foreground group-hover:skeuo-glow-text opacity-0 group-hover:opacity-100 transition-all" />
                       </Link>
                     )
                   })}
@@ -141,9 +133,9 @@ export function Header() {
 
               {/* Status Section */}
               <div className="mt-auto pt-4">
-                <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10">
-                  <p className="text-[10px] text-slate-500 font-mono uppercase text-center">
-                    Status: <span className="text-emerald-500">Online</span>
+                <div className="skeuo-inset p-4">
+                  <p className="text-[10px] text-muted-foreground font-mono uppercase text-center">
+                    Status: <span className="skeuo-glow-text">Online</span>
                   </p>
                 </div>
               </div>

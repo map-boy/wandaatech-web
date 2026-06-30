@@ -51,63 +51,63 @@ export default function LoginTab({ onLoggedIn, onGoRegister }: {
 
   return (
     <div className="max-w-md mx-auto">
-      <motion.div className="rounded-3xl border border-emerald-500/20 bg-white/5 dark:bg-slate-900/40 backdrop-blur-xl p-8 shadow-2xl space-y-6"
+      <motion.div className="skeuo-card bg-neutral-950 border border-neutral-900 rounded-3xl p-8 space-y-6"
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <div className="text-center space-y-1">
-          <div className="w-14 h-14 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-3">
-            <LogIn className="w-6 h-6 text-emerald-500" />
+          <div className="skeuo-inset w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3">
+            <LogIn className="w-6 h-6 text-[hsl(var(--skeuo-accent))]" />
           </div>
-          <h2 className="text-xl font-black uppercase tracking-tight">Welcome Back</h2>
-          <p className="text-xs text-muted-foreground">Log in with the email and password you registered with.</p>
+          <h2 className="text-xl font-black uppercase tracking-tight text-neutral-100">Welcome Back</h2>
+          <p className="text-xs text-neutral-500">Log in with the email and password you registered with.</p>
         </div>
 
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">Email</label>
+            <label className="text-xs font-semibold text-neutral-400">Email</label>
             <div className="relative">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                 placeholder="your@email.com"
-                className="w-full pl-11 pr-4 py-3 bg-black/20 dark:bg-black/40 border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                className="skeuo-inset w-full pl-11 pr-4 py-3 bg-black/60 border border-neutral-800 rounded-xl text-neutral-200 placeholder-neutral-600 focus:outline-none"
               />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">Password</label>
+            <label className="text-xs font-semibold text-neutral-400">Password</label>
             <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                 placeholder="••••••••"
-                className="w-full pl-11 pr-4 py-3 bg-black/20 dark:bg-black/40 border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                className="skeuo-inset w-full pl-11 pr-4 py-3 bg-black/60 border border-neutral-800 rounded-xl text-neutral-200 placeholder-neutral-600 focus:outline-none"
               />
             </div>
           </div>
         </div>
 
         {error && (
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+          <div className="skeuo-inset flex items-center gap-2 p-3 rounded-xl border border-red-900/40">
             <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
             <p className="text-sm text-red-400">{error}</p>
           </div>
         )}
 
         <button onClick={handleLogin} disabled={loading}
-          className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-black rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95 flex items-center justify-center gap-3 uppercase tracking-tight">
+          className="skeuo-button w-full py-4 bg-[hsl(var(--skeuo-accent))] disabled:opacity-40 text-black font-black rounded-xl transition-all flex items-center justify-center gap-3 uppercase tracking-tight cursor-pointer">
           {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Logging in...</> : <><CheckCircle className="w-5 h-5" /> Log In</>}
         </button>
 
-        <p className="text-xs text-center text-muted-foreground">
+        <p className="text-xs text-center text-neutral-500">
           Not registered yet?{' '}
-          <button onClick={onGoRegister} className="text-emerald-500 font-bold hover:underline">
+          <button onClick={onGoRegister} className="text-[hsl(var(--skeuo-accent))] font-bold hover:underline cursor-pointer">
             Create an account
           </button>
         </p>

@@ -22,31 +22,41 @@
 }
 
 :root {
-  --background: 210 40% 98%;
-  --foreground: 215 25% 15%;
-  --primary: 160 84% 39%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 199 89% 48%;
-  --secondary-foreground: 215 25% 15%;
-  --muted: 210 20% 90%;
-  --muted-foreground: 215 15% 45%;
-  --card: 210 40% 99%;
-  --card-foreground: 215 25% 15%;
-  --border: 214 32% 91%;
-  --input: 214 32% 91%;
-  --ring: 160 84% 39%;
+  --background: 0 0% 88%;
+  --foreground: 0 0% 6%;
+  --primary: 48 100% 42%;
+  --primary-foreground: 0 0% 0%;
+  --secondary: 45 90% 35%;
+  --secondary-foreground: 0 0% 6%;
+  --muted: 0 0% 78%;
+  --muted-foreground: 0 0% 30%;
+  --card: 0 0% 84%;
+  --card-foreground: 0 0% 6%;
+  --border: 0 0% 70%;
+  --input: 0 0% 70%;
+  --ring: 48 100% 42%;
   --radius: 1rem;
+
+  /* Skeuomorphic tokens (flat black/yellow, no glow) */
+  --skeuo-surface: 0 0% 80%;
+  --skeuo-accent: 48 100% 38%;
+  --skeuo-accent-glow: 48 100% 38%;
 }
 
 .dark {
-  --background: 222 47% 7%;
-  --foreground: 213 27% 84%;
-  --primary: 160 84% 39%;
-  --secondary: 199 89% 48%;
-  --muted: 217 32% 15%;
-  --muted-foreground: 215 20% 65%;
-  --border: 217 32% 17%;
-  --card: 222 47% 10%;
+  --background: 0 0% 5%;
+  --foreground: 48 30% 90%;
+  --primary: 48 100% 50%;
+  --secondary: 45 90% 38%;
+  --muted: 0 0% 12%;
+  --muted-foreground: 0 0% 60%;
+  --border: 0 0% 16%;
+  --card: 0 0% 8%;
+
+  /* Skeuomorphic tokens (flat black/yellow, no glow) */
+  --skeuo-surface: 0 0% 9%;
+  --skeuo-accent: 48 100% 50%;
+  --skeuo-accent-glow: 48 100% 50%; /* kept equal to accent so text/edges don't "shine" */
 }
 
 /* 2. BASE STYLES */
@@ -57,33 +67,124 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    /* Mesh Background */
-    background-image: 
-      radial-gradient(at 0% 0%, hsla(160, 84%, 39%, 0.08) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, hsla(199, 89%, 48%, 0.08) 0px, transparent 50%);
+    /* Flat background, no radial glow washes */
+    background-image: none;
   }
 }
 
 /* 3. CUSTOM COMPONENTS (Avoid using @apply here to prevent build errors) */
 @layer components {
   .glass {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(20, 20, 20, 0.4);
     backdrop-filter: blur(12px);
-    border: 1px solid rgba(16, 185, 129, 0.2);
-    box-shadow: 0 8px 32px 0 rgba(15, 118, 110, 0.1);
-    transition: all 0.3s ease;
+    border: 1px solid rgba(234, 179, 8, 0.15);
+    box-shadow: none;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
   }
 
   .glass-hover:hover {
-    background-color: rgba(255, 255, 255, 0.15);
-    border-color: rgba(14, 165, 233, 0.3);
-    box-shadow: 0 8px 32px 0 rgba(14, 165, 233, 0.2);
+    background-color: rgba(20, 20, 20, 0.55);
+    border-color: rgba(234, 179, 8, 0.3);
+    box-shadow: none;
   }
 
   .text-gradient {
-    background: linear-gradient(to right, #10b981, #0ea5e9);
+    background: linear-gradient(to right, #eab308, #000000);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     font-weight: bold;
+  }
+
+  /* ── Skeuomorphic system: black/yellow, matte (no bright glow) ── */
+  .skeuo-card {
+    background: hsl(var(--skeuo-surface));
+    color: hsl(var(--foreground));
+    border-radius: 1.5rem;
+    border: 1px solid hsla(var(--skeuo-accent), 0.12);
+    box-shadow:
+      8px 8px 20px rgba(0, 0, 0, 0.35),
+      -6px -6px 16px rgba(255, 255, 255, 0.03),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+  }
+
+  .skeuo-card:hover {
+    box-shadow:
+      10px 10px 24px rgba(0, 0, 0, 0.4),
+      -8px -8px 18px rgba(255, 255, 255, 0.04),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .skeuo-inset {
+    background: hsl(var(--skeuo-surface));
+    color: hsl(var(--foreground));
+    border-radius: 1rem;
+    box-shadow:
+      inset 4px 4px 10px rgba(0, 0, 0, 0.15),
+      inset -4px -4px 10px rgba(255, 255, 255, 0.5);
+  }
+
+  .skeuo-inset input,
+  .skeuo-inset textarea,
+  .skeuo-inset select,
+  input.skeuo-inset,
+  textarea.skeuo-inset,
+  select.skeuo-inset {
+    color: hsl(var(--foreground));
+    background: transparent;
+  }
+
+  .skeuo-inset input::placeholder,
+  .skeuo-inset textarea::placeholder,
+  input.skeuo-inset::placeholder,
+  textarea.skeuo-inset::placeholder {
+    color: hsl(var(--muted-foreground));
+    opacity: 0.7;
+  }
+
+  .dark .skeuo-inset {
+    box-shadow:
+      inset 4px 4px 10px rgba(0, 0, 0, 0.4),
+      inset -4px -4px 10px rgba(255, 255, 255, 0.03);
+  }
+
+  .skeuo-button {
+    background: linear-gradient(145deg, hsla(var(--skeuo-surface), 1), hsla(var(--skeuo-surface), 0.85));
+    color: hsl(var(--foreground));
+    border-radius: 0.9rem;
+    border: 1px solid hsla(var(--skeuo-accent), 0.15);
+    box-shadow:
+      5px 5px 12px rgba(0, 0, 0, 0.35),
+      -4px -4px 10px rgba(255, 255, 255, 0.03);
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+    cursor: pointer;
+  }
+
+  .skeuo-button:hover {
+    box-shadow:
+      6px 6px 14px rgba(0, 0, 0, 0.4),
+      -5px -5px 12px rgba(255, 255, 255, 0.04);
+  }
+
+  .skeuo-button:active {
+    box-shadow:
+      inset 3px 3px 8px rgba(0, 0, 0, 0.4),
+      inset -3px -3px 8px rgba(255, 255, 255, 0.03);
+    transform: scale(0.98);
+  }
+
+  .skeuo-dial-ring {
+    --dial-progress: 0;
+    background: conic-gradient(
+      hsl(var(--skeuo-accent)) calc(var(--dial-progress) * 1%),
+      hsla(var(--skeuo-accent), 0.1) 0
+    );
+    border-radius: 50%;
+  }
+
+  /* "Glow" text is now flat solid yellow with no text-shadow, per request */
+  .skeuo-glow-text {
+    color: hsl(var(--skeuo-accent));
+    text-shadow: none;
   }
 }

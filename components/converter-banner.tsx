@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { FileType, ArrowRight, FileText, Image, Minimize2 } from 'lucide-react'
+import { FileType, ArrowRight } from 'lucide-react'
 
 const features = [
   { icon: '📝', label: 'DOCX → PDF',      desc: 'Word to PDF instantly' },
@@ -13,7 +13,7 @@ const features = [
 
 export function ConverterBanner() {
   return (
-    <section className="py-16 sm:py-20 bg-emerald-500/5 border-y border-emerald-500/20">
+    <section className="py-16 sm:py-20 bg-background border-y border-border/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-10 items-center">
 
@@ -26,10 +26,10 @@ export function ConverterBanner() {
             viewport={{ once: true }}
           >
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
-                <FileType className="w-6 h-6 text-emerald-500" />
+              <div className="skeuo-card p-2.5">
+                <FileType className="w-6 h-6 skeuo-glow-text" />
               </div>
-              <span className="text-xs font-black bg-emerald-500 text-white px-2.5 py-1 rounded-full uppercase tracking-wider">
+              <span className="text-xs font-black skeuo-button px-2.5 py-1 uppercase tracking-wider">
                 Free Tool for Students
               </span>
             </div>
@@ -37,10 +37,10 @@ export function ConverterBanner() {
             <div className="space-y-3">
               <h2 className="text-3xl sm:text-4xl font-bold text-foreground leading-tight">
                 Convert & Compress
-                <span className="text-emerald-500"> Documents</span>
+                <span className="skeuo-glow-text"> Documents</span>
                 <br />Instantly
               </h2>
-              <p className="text-muted-foreground text-lg leading-relaxed">
+              <p className="text-muted-foreground text-lg leading-relaxed skeuo-inset py-3 px-5">
                 Need to submit your assignment as PDF? Compress a file that is too large?
                 Convert Word documents, images, and more — all in your browser, completely private.
               </p>
@@ -48,10 +48,10 @@ export function ConverterBanner() {
 
             <Link
               href="/converter"
-              className="inline-flex items-center gap-3 px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
+              className="inline-flex items-center gap-3 px-8 py-4 skeuo-button font-bold"
             >
-              Open File Converter
-              <ArrowRight className="w-5 h-5" />
+              <span className="skeuo-glow-text">Open File Converter</span>
+              <ArrowRight className="w-5 h-5 skeuo-glow-text" />
             </Link>
           </motion.div>
 
@@ -66,9 +66,9 @@ export function ConverterBanner() {
                 viewport={{ once: true }}
               >
                 <Link href="/converter" className="group block">
-                  <div className="h-full p-5 rounded-2xl border border-border/60 bg-card hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all duration-300">
+                  <div className="skeuo-card h-full p-5">
                     <div className="text-3xl mb-3">{f.icon}</div>
-                    <p className="font-bold text-foreground text-sm group-hover:text-emerald-400 transition-colors">
+                    <p className="font-bold text-foreground text-sm group-hover:skeuo-glow-text transition-colors">
                       {f.label}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">{f.desc}</p>

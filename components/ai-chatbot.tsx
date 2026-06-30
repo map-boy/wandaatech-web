@@ -9,7 +9,6 @@ interface Message {
   content: string
 }
 
-// ── Calls HuggingFace router DIRECTLY from the browser (no server route needed)
 const HF_TOKEN = process.env.NEXT_PUBLIC_HF_TOKEN as string
 const HF_MODEL = process.env.NEXT_PUBLIC_HF_MODEL || 'openai/gpt-oss-120b:cerebras'
 const HF_URL   = 'https://router.huggingface.co/v1/chat/completions'
@@ -118,24 +117,24 @@ export function AIChatbot() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: 'spring', damping: 22, stiffness: 300 }}
-            className="fixed bottom-24 right-6 z-50 w-[340px] sm:w-[380px] rounded-3xl border border-emerald-500/20 bg-slate-950/95 backdrop-blur-2xl shadow-2xl shadow-emerald-500/10 flex flex-col overflow-hidden"
+            className="fixed bottom-24 right-6 z-50 w-[340px] sm:w-[380px] skeuo-card flex flex-col overflow-hidden"
             style={{ height: '480px' }}
           >
             {/* Header */}
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-border/40 bg-gradient-to-r from-emerald-500/5 to-transparent shrink-0">
-              <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                <Bot className="w-5 h-5 text-white" />
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-border/40 shrink-0">
+              <div className="w-9 h-9 rounded-xl skeuo-button flex items-center justify-center">
+                <Bot className="w-5 h-5 skeuo-glow-text" />
               </div>
               <div>
                 <p className="text-sm font-black text-foreground uppercase tracking-tight">WANDAA</p>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[10px] text-emerald-500 font-mono font-bold uppercase tracking-widest">Online</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--skeuo-accent))] animate-pulse" />
+                  <span className="text-[10px] skeuo-glow-text font-mono font-bold uppercase tracking-widest">Online</span>
                 </div>
               </div>
               <button
                 onClick={() => setOpen(false)}
-                className="ml-auto p-1.5 rounded-xl hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
+                className="ml-auto p-1.5 rounded-xl skeuo-button text-muted-foreground hover:text-foreground transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -146,10 +145,10 @@ export function AIChatbot() {
 
               {/* Welcome */}
               <div className="flex items-start gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-emerald-600/80 flex items-center justify-center shrink-0 mt-0.5">
-                  <Bot className="w-3.5 h-3.5 text-white" />
+                <div className="w-7 h-7 rounded-lg skeuo-button flex items-center justify-center shrink-0 mt-0.5">
+                  <Bot className="w-3.5 h-3.5 skeuo-glow-text" />
                 </div>
-                <div className="bg-white/5 border border-border/40 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
+                <div className="skeuo-inset rounded-tl-sm px-4 py-3 max-w-[85%]">
                   <p className="text-sm text-foreground leading-relaxed">{WELCOME}</p>
                 </div>
               </div>
@@ -157,18 +156,16 @@ export function AIChatbot() {
               {/* Conversation */}
               {messages.map((msg, i) => (
                 <div key={i} className={`flex items-start gap-2.5 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
-                    msg.role === 'user' ? 'bg-slate-700' : 'bg-emerald-600/80'
-                  }`}>
+                  <div className="w-7 h-7 rounded-lg skeuo-button flex items-center justify-center shrink-0 mt-0.5">
                     {msg.role === 'user'
-                      ? <User className="w-3.5 h-3.5 text-white" />
-                      : <Bot className="w-3.5 h-3.5 text-white" />
+                      ? <User className="w-3.5 h-3.5 text-foreground" />
+                      : <Bot className="w-3.5 h-3.5 skeuo-glow-text" />
                     }
                   </div>
                   <div className={`px-4 py-3 max-w-[85%] text-sm leading-relaxed rounded-2xl whitespace-pre-wrap ${
                     msg.role === 'user'
-                      ? 'bg-emerald-600 text-white rounded-tr-sm'
-                      : 'bg-white/5 border border-border/40 text-foreground rounded-tl-sm'
+                      ? 'bg-[hsl(var(--skeuo-accent))] text-black rounded-tr-sm font-medium'
+                      : 'skeuo-inset text-foreground rounded-tl-sm'
                   }`}>
                     {msg.content}
                   </div>
@@ -178,14 +175,14 @@ export function AIChatbot() {
               {/* Loading dots */}
               {loading && (
                 <div className="flex items-start gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-emerald-600/80 flex items-center justify-center shrink-0 mt-0.5">
-                    <Bot className="w-3.5 h-3.5 text-white" />
+                  <div className="w-7 h-7 rounded-lg skeuo-button flex items-center justify-center shrink-0 mt-0.5">
+                    <Bot className="w-3.5 h-3.5 skeuo-glow-text" />
                   </div>
-                  <div className="bg-white/5 border border-border/40 rounded-2xl rounded-tl-sm px-4 py-3">
+                  <div className="skeuo-inset rounded-tl-sm px-4 py-3">
                     <div className="flex gap-1 items-center h-4">
-                      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      <span className="w-1.5 h-1.5 bg-[hsl(var(--skeuo-accent))] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-1.5 h-1.5 bg-[hsl(var(--skeuo-accent))] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-1.5 h-1.5 bg-[hsl(var(--skeuo-accent))] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                     </div>
                   </div>
                 </div>
@@ -203,7 +200,7 @@ export function AIChatbot() {
 
             {/* Input */}
             <div className="px-4 py-4 border-t border-border/40 shrink-0">
-              <div className="flex items-center gap-2 bg-white/5 border border-border/60 focus-within:border-emerald-500/50 rounded-2xl px-4 py-2.5 transition-all">
+              <div className="flex items-center gap-2 skeuo-inset px-4 py-2.5">
                 <input
                   ref={inputRef}
                   type="text"
@@ -217,11 +214,11 @@ export function AIChatbot() {
                 <button
                   onClick={() => sendMessage()}
                   disabled={!input.trim() || loading}
-                  className="w-8 h-8 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all active:scale-95 shrink-0"
+                  className="w-8 h-8 rounded-xl skeuo-button disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center shrink-0"
                 >
                   {loading
-                    ? <Loader2 className="w-3.5 h-3.5 text-white animate-spin" />
-                    : <Send className="w-3.5 h-3.5 text-white" />
+                    ? <Loader2 className="w-3.5 h-3.5 skeuo-glow-text animate-spin" />
+                    : <Send className="w-3.5 h-3.5 skeuo-glow-text" />
                   }
                 </button>
               </div>
@@ -238,26 +235,19 @@ export function AIChatbot() {
         onClick={() => setOpen((v) => !v)}
         whileHover={{ scale: 1.08 }}
         whileTap={{ scale: 0.95 }}
-        className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-colors duration-200 ${
-          open
-            ? 'bg-slate-700 shadow-slate-500/20'
-            : 'bg-emerald-600 shadow-emerald-500/40 hover:bg-emerald-500'
-        }`}
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full skeuo-button flex items-center justify-center"
       >
         <AnimatePresence mode="wait">
           {open ? (
             <motion.div key="close" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.15 }}>
-              <X className="w-6 h-6 text-white" />
+              <X className="w-6 h-6 skeuo-glow-text" />
             </motion.div>
           ) : (
             <motion.div key="open" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.15 }}>
-              <MessageCircle className="w-6 h-6 text-white" />
+              <MessageCircle className="w-6 h-6 skeuo-glow-text" />
             </motion.div>
           )}
         </AnimatePresence>
-        {!open && (
-          <span className="absolute inset-0 rounded-full animate-ping bg-emerald-500/30 pointer-events-none" />
-        )}
       </motion.button>
     </>
   )

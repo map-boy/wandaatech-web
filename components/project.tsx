@@ -15,10 +15,10 @@ const projectFeatures = [
 ]
 
 const tagStyles: Record<string, string> = {
-  emerald: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  sky:     'bg-sky-500/10 text-sky-400 border-sky-500/20',
+  emerald: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+  sky:     'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
   amber:   'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  violet:  'bg-violet-500/10 text-violet-400 border-violet-500/20',
+  violet:  'bg-amber-700/10 text-amber-600 border-amber-700/20',
 }
 
 const articleContent: Record<string, { sections: { heading: string; paragraphs: string[] }[] }> = {
@@ -353,19 +353,19 @@ function ArticleReader({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 20 }}
       transition={{ duration: 0.4 }}
-      className="rounded-3xl border border-emerald-500/20 bg-card overflow-hidden"
+      className="rounded-3xl border border-amber-500/20 bg-card overflow-hidden"
     >
       {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border/50 bg-emerald-500/5">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border/50 bg-amber-500/5">
         <button
           onClick={onClose}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-emerald-500 transition-colors"
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-amber-500 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Back to articles
         </button>
         <button
           onClick={onClose}
-          className="p-1.5 rounded-lg hover:bg-emerald-500/10 text-muted-foreground hover:text-emerald-500 transition-colors"
+          className="p-1.5 rounded-lg hover:bg-amber-500/10 text-muted-foreground hover:text-amber-500 transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
@@ -391,7 +391,7 @@ function ArticleReader({
           </h2>
           <p className="text-muted-foreground leading-relaxed">{post.excerpt}</p>
           <div className="flex items-center gap-3 pt-1">
-            <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold text-xs">
+            <div className="w-7 h-7 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 font-bold text-xs">
               V
             </div>
             <div>
@@ -414,7 +414,7 @@ function ArticleReader({
         <div className="pt-8 border-t border-border/50">
           <button
             onClick={onClose}
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-emerald-500 transition-colors"
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-amber-500 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" /> Back to articles
           </button>
@@ -462,7 +462,7 @@ export function Project() {
             <h2 className="text-4xl sm:text-5xl font-bold text-foreground tracking-tight">
               Our Flagship Project
             </h2>
-            <p className="text-lg text-emerald-600 dark:text-emerald-400 font-medium">
+            <p className="text-lg text-amber-600 dark:text-amber-400 font-medium">
               Revolutionizing logistics with Easy GO
             </p>
           </motion.div>
@@ -471,12 +471,12 @@ export function Project() {
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
 
             <motion.div
-              className="relative group aspect-square rounded-3xl glass border border-white/10 flex items-center justify-center p-12 overflow-hidden shadow-2xl"
+              className="skeuo-card relative group aspect-square flex items-center justify-center p-12 overflow-hidden"
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-sky-500/10 opacity-50 group-hover:opacity-100 transition-opacity duration-700" />
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 via-transparent to-yellow-500/10 opacity-50 group-hover:opacity-100 transition-opacity duration-700" />
               <Image
                 src="/Gemini_Generated_Image_i81dxxi81dxxi81d.png"
                 alt="Easy GO Logo"
@@ -485,8 +485,8 @@ export function Project() {
                 className="relative z-10 object-contain drop-shadow-2xl transition-transform duration-700 group-hover:scale-110"
                 priority
               />
-              <div className="absolute top-6 left-6 w-12 h-12 border-t-2 border-l-2 border-emerald-500/30 rounded-tl-xl" />
-              <div className="absolute bottom-6 right-6 w-12 h-12 border-b-2 border-r-2 border-sky-500/30 rounded-br-xl" />
+              <div className="absolute top-6 left-6 w-12 h-12 border-t-2 border-l-2 border-amber-500/30 rounded-tl-xl" />
+              <div className="absolute bottom-6 right-6 w-12 h-12 border-b-2 border-r-2 border-yellow-500/30 rounded-br-xl" />
             </motion.div>
 
             <div className="space-y-8">
@@ -508,14 +508,14 @@ export function Project() {
                 {projectFeatures.map((feature, i) => (
                   <motion.div
                     key={feature}
-                    className="flex items-center gap-3 p-3 rounded-xl glass border border-white/5 hover:border-emerald-500/30 transition-colors"
+                    className="skeuo-inset flex items-center gap-3 p-3 transition-colors"
                     initial={{ opacity: 0, x: 20 }}
                     whileInView={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.1 }}
                     viewport={{ once: true }}
                   >
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="skeuo-button w-8 h-8 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-5 h-5 skeuo-glow-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
@@ -540,10 +540,10 @@ export function Project() {
                       }, 100)
                     }
                   }}
-                  className="flex items-center gap-3 px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
+                  className="skeuo-button flex items-center gap-3 px-8 py-4 font-bold"
                 >
-                  {showCaseStudy ? 'Hide Case Study' : 'View Case Study'}
-                  <ChevronDown className={`w-5 h-5 transition-transform duration-300 ${showCaseStudy ? 'rotate-180' : ''}`} />
+                  <span className="skeuo-glow-text">{showCaseStudy ? 'Hide Case Study' : 'View Case Study'}</span>
+                  <ChevronDown className={`w-5 h-5 skeuo-glow-text transition-transform duration-300 ${showCaseStudy ? 'rotate-180' : ''}`} />
                 </button>
               </motion.div>
             </div>
@@ -581,29 +581,29 @@ export function Project() {
                         onClick={() => handleOpenArticle(featured.slug)}
                         className="group cursor-pointer"
                       >
-                        <div className="relative rounded-3xl border border-border/60 hover:border-emerald-500/40 bg-card transition-all duration-500 p-8 sm:p-12 overflow-hidden">
-                          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-sky-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                        <div className="skeuo-card relative p-8 sm:p-12 overflow-hidden">
+                          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-yellow-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                           <div className="relative z-10 grid lg:grid-cols-2 gap-8 items-center">
                             <div className="space-y-6">
                               <div className="flex items-center gap-3">
-                                <span className={`text-xs font-semibold px-3 py-1 rounded-full border ${tagStyles[featured.tagColor]}`}>
+                                <span className={`text-xs font-semibold px-3 py-1 skeuo-inset ${tagStyles[featured.tagColor]}`}>
                                   {featured.tag}
                                 </span>
                                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                                   <Clock className="w-3 h-3" /> {featured.readTime}
                                 </span>
                               </div>
-                              <h4 className="text-2xl sm:text-3xl font-bold text-foreground leading-snug group-hover:text-emerald-400 transition-colors">
+                              <h4 className="text-2xl sm:text-3xl font-bold text-foreground leading-snug group-hover:text-amber-400 transition-colors">
                                 {featured.title}
                               </h4>
                               <p className="text-muted-foreground leading-relaxed">{featured.excerpt}</p>
-                              <div className="flex items-center gap-2 text-emerald-500 font-medium">
+                              <div className="flex items-center gap-2 text-amber-500 font-medium">
                                 Read article <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                               </div>
                             </div>
-                            <div className="hidden lg:flex items-center justify-center rounded-2xl bg-emerald-500/5 border border-emerald-500/10 aspect-video">
+                            <div className="hidden lg:flex items-center justify-center skeuo-inset aspect-video">
                               <div className="text-center space-y-2 p-8">
-                                <div className="text-5xl font-black text-emerald-500/20 tracking-tighter">EASY GO</div>
+                                <div className="text-5xl font-black text-amber-500/20 tracking-tighter">EASY GO</div>
                                 <div className="text-xs text-muted-foreground/50 uppercase tracking-widest">VAF UBWENGE TECH</div>
                               </div>
                             </div>
@@ -622,16 +622,16 @@ export function Project() {
                             onClick={() => handleOpenArticle(post.slug)}
                             className="group cursor-pointer"
                           >
-                            <div className="h-full rounded-2xl border border-border/60 hover:border-emerald-500/30 bg-card p-6 space-y-4 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/5">
+                            <div className="h-full skeuo-card p-6 space-y-4">
                               <div className="flex items-center justify-between">
-                                <span className={`text-xs font-semibold px-3 py-1 rounded-full border ${tagStyles[post.tagColor]}`}>
+                                <span className={`text-xs font-semibold px-3 py-1 skeuo-inset ${tagStyles[post.tagColor]}`}>
                                   {post.tag}
                                 </span>
                                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                                   <Clock className="w-3 h-3" /> {post.readTime}
                                 </span>
                               </div>
-                              <h4 className="font-bold text-foreground leading-snug group-hover:text-emerald-400 transition-colors line-clamp-2">
+                              <h4 className="font-bold text-foreground leading-snug group-hover:text-amber-400 transition-colors line-clamp-2">
                                 {post.title}
                               </h4>
                               <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
@@ -641,7 +641,7 @@ export function Project() {
                                 <span className="flex items-center gap-1">
                                   <Tag className="w-3 h-3" /> {post.date}
                                 </span>
-                                <span className="flex items-center gap-1 text-emerald-500 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="flex items-center gap-1 text-amber-500 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
                                   Read <ArrowRight className="w-3 h-3" />
                                 </span>
                               </div>

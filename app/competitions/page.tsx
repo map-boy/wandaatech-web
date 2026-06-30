@@ -70,15 +70,15 @@ function CompetitionsInner() {
       <Header />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="flex items-center justify-center gap-3 mb-10">
-          <div className="flex gap-1 p-1 rounded-2xl bg-white/5 dark:bg-slate-900/40 border border-border/60 w-fit">
+          <div className="skeuo-inset flex gap-1 p-1 rounded-2xl w-fit">
             {tabs.map((t) => (
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${
                   tab === t.id
-                    ? 'bg-emerald-600 text-white shadow'
-                    : 'text-muted-foreground hover:text-foreground'
+                    ? 'skeuo-button bg-[hsl(var(--skeuo-accent))] text-black'
+                    : 'text-neutral-500 hover:text-[hsl(var(--skeuo-accent))]'
                 }`}
               >
                 {t.label}
@@ -88,7 +88,7 @@ function CompetitionsInner() {
           {isRegistered && (
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-muted-foreground hover:text-red-400 border border-border/60 hover:border-red-500/30 transition-all"
+              className="skeuo-button flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-neutral-400 hover:text-red-400 transition-all cursor-pointer"
               title="Log out"
             >
               <LogOut className="w-3.5 h-3.5" /> Log out

@@ -31,7 +31,6 @@ export function Hero() {
           priority
           quality={90}
         />
-        {/* Modern Blue-Green Glass Overlay to ensure text readability */}
         <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/40 to-background backdrop-blur-[2px]" />
       </div>
 
@@ -43,14 +42,21 @@ export function Hero() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.8 }}
+            className="skeuo-card inline-block px-10 py-8"
           >
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight text-foreground drop-shadow-xl">
-              {headlines[current]}
+              {headlines[current].split(' ').map((word, i) =>
+                i === headlines[current].split(' ').length - 1 ? (
+                  <span key={i} className="skeuo-glow-text">{word}</span>
+                ) : (
+                  <span key={i}>{word} </span>
+                )
+              )}
             </h1>
           </motion.div>
 
           <motion.p
-            className="text-xl md:text-2xl text-foreground/90 max-w-2xl mx-auto bg-white/10 dark:bg-black/20 backdrop-blur-md rounded-full py-2 px-8 border border-white/20 inline-block shadow-2xl"
+            className="text-xl md:text-2xl text-foreground/90 max-w-2xl mx-auto skeuo-inset py-3 px-8 inline-block"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
@@ -65,16 +71,16 @@ export function Hero() {
             transition={{ duration: 0.6, delay: 0.8 }}
           >
             <motion.button
-              className="px-8 py-4 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-500 transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)]"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              className="skeuo-button px-8 py-4 text-foreground font-bold"
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
             >
-              Explore Our Work
+              <span className="skeuo-glow-text">Explore Our Work</span>
             </motion.button>
             <motion.button
-              className="px-8 py-4 glass text-foreground font-bold rounded-xl hover:bg-white/10 border border-white/20 transition-all"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              className="skeuo-button px-8 py-4 text-foreground font-bold"
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
             >
               Learn More
             </motion.button>
@@ -88,8 +94,8 @@ export function Hero() {
         animate={{ y: [0, 10, 0] }}
         transition={{ duration: 2, repeat: Infinity }}
       >
-        <div className="w-6 h-10 border-2 border-foreground/30 rounded-full flex justify-center p-1">
-          <div className="w-1 h-2 bg-emerald-500 rounded-full" />
+        <div className="skeuo-inset w-6 h-10 rounded-full flex justify-center p-1">
+          <div className="w-1 h-2 rounded-full skeuo-glow-text bg-current" />
         </div>
       </motion.div>
     </section>

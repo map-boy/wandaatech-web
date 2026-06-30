@@ -10,7 +10,7 @@ export function About() {
           {/* Section Header */}
           <div className="space-y-4 max-w-2xl">
             <h2 className="text-4xl sm:text-5xl font-bold text-foreground">
-              About VAF UBWENGE TECH
+              About <span className="skeuo-glow-text">VAF UBWENGE TECH</span>
             </h2>
             <p className="text-lg text-muted-foreground">
               We are a student-led startup built by passionate innovators
@@ -20,7 +20,7 @@ export function About() {
           {/* Content Grid */}
           <div className="grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Left Content */}
-            <div className="space-y-6">
+            <div className="skeuo-card p-8 space-y-6">
               <div className="space-y-4">
                 <h3 className="text-2xl font-semibold text-foreground">
                   Founded by Data Science Students
@@ -43,17 +43,17 @@ export function About() {
                 <h3 className="text-2xl font-semibold text-foreground">
                   Core Values
                 </h3>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li className="flex items-center gap-3">
-                    <span className="w-2 h-2 bg-primary rounded-full" />
+                <ul className="space-y-3 text-muted-foreground">
+                  <li className="skeuo-inset flex items-center gap-3 px-4 py-2.5">
+                    <span className="w-2 h-2 rounded-full skeuo-glow-text bg-current" />
                     Innovation through education
                   </li>
-                  <li className="flex items-center gap-3">
-                    <span className="w-2 h-2 bg-primary rounded-full" />
+                  <li className="skeuo-inset flex items-center gap-3 px-4 py-2.5">
+                    <span className="w-2 h-2 rounded-full skeuo-glow-text bg-current" />
                     Real-world impact
                   </li>
-                  <li className="flex items-center gap-3">
-                    <span className="w-2 h-2 bg-primary rounded-full" />
+                  <li className="skeuo-inset flex items-center gap-3 px-4 py-2.5">
+                    <span className="w-2 h-2 rounded-full skeuo-glow-text bg-current" />
                     Entrepreneurial spirit
                   </li>
                 </ul>
@@ -61,16 +61,17 @@ export function About() {
             </div>
 
             {/* Right - Company Image */}
-            <div className="relative rounded-2xl aspect-square overflow-hidden border border-border shadow-xl">
-              <Image
-                src="/company-logo.jpg"
-                alt="VAF UBWENGE TECH"
-                fill
-                className="object-cover"
-                sizes="(max-width: 768px) 100vw, 50vw"
-              />
-              {/* Subtle overlay to match the theme */}
-              <div className="absolute inset-0 bg-primary/5 hover:bg-transparent transition-colors duration-300" />
+            <div className="skeuo-card relative rounded-[1.5rem] aspect-square overflow-hidden p-3">
+              <div className="relative w-full h-full rounded-2xl overflow-hidden">
+                <Image
+                  src="/company-logo.jpg"
+                  alt="VAF UBWENGE TECH"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                />
+                <div className="absolute inset-0 bg-primary/5 hover:bg-transparent transition-colors duration-300" />
+              </div>
             </div>
           </div>
         </div>
