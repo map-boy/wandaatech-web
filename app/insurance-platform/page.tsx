@@ -1,35 +1,33 @@
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "InsureRw Assistant — NBR FinTech Innovation Hackathon 2026",
+  title: "InsureRw Assistant - NBR FinTech Innovation Hackathon 2026",
   description:
-    "InsureRw Assistant is a bilingual (Kinyarwanda & English) AI-powered insurance claims chatbot built for the National Bank of Rwanda FinTech Innovation Hackathon 2026, accessible via WhatsApp and web.",
+    "InsureRw Assistant is a bilingual (Kinyarwanda and English) AI-powered insurance claims chatbot built for the National Bank of Rwanda FinTech Innovation Hackathon 2026, accessible via WhatsApp and web.",
 }
 
 export default function InsurancePlatformPage() {
   return (
     <main className="min-h-screen w-full bg-black text-white">
-      {/* Hero */}
       <section className="w-full border-b border-white/10 bg-gradient-to-b from-amber-950/40 to-black px-6 py-10 sm:py-14">
         <div className="mx-auto max-w-4xl text-center">
           <p className="mb-3 inline-block rounded-full border border-amber-500/40 bg-amber-500/10 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-amber-400">
-            National Bank of Rwanda &middot; FinTech Innovation Hackathon 2026
+            National Bank of Rwanda - FinTech Innovation Hackathon 2026
           </p>
           <h1 className="text-3xl sm:text-5xl font-bold leading-tight">
             InsureRw Assistant
           </h1>
           <p className="mt-3 text-base sm:text-lg text-white/70">
             An AI-powered insurance claims chatbot in{" "}
-            <span className="text-white font-medium">Kinyarwanda &amp; English</span>,
+            <span className="text-white font-medium">Kinyarwanda and English</span>,
             accessible via WhatsApp or a simple web app.
           </p>
           <p className="mt-2 text-sm text-white/50">
-            Built by VAF UBWENGE TECH &middot; Kigali, Rwanda
+            Built by VAF UBWENGE TECH - Kigali, Rwanda
           </p>
         </div>
       </section>
 
-      {/* Video */}
       <section className="w-full flex items-center justify-center bg-black px-4 py-8 sm:py-10">
         <div className="w-full max-w-4xl">
           <video
@@ -42,7 +40,7 @@ export default function InsurancePlatformPage() {
             Your browser does not support the video tag.
           </video>
           <div className="mt-3 text-center">
-            
+            <a
               href="/insurance-platform.mp4"
               download
               className="text-sm text-amber-400 hover:text-amber-300 underline underline-offset-4"
@@ -53,16 +51,15 @@ export default function InsurancePlatformPage() {
         </div>
       </section>
 
-      {/* Context */}
       <section className="mx-auto max-w-4xl px-6 py-10 sm:py-14">
         <div className="grid gap-8 sm:grid-cols-2">
           <div className="rounded-xl border border-white/10 bg-white/5 p-6">
             <h2 className="text-lg font-semibold text-amber-400 mb-2">The Challenge</h2>
             <p className="text-sm text-white/70 leading-relaxed">
               The National Bank of Rwanda invited fintech innovators to build
-              practical solutions for Rwanda&apos;s financial sector, in line
-              with the FSDS 2025&ndash;2029 and the National FinTech Strategy
-              2024&ndash;2029 &mdash; under the thematic area of{" "}
+              practical solutions for the financial sector, in line with the
+              FSDS 2025-2029 and the National FinTech Strategy 2024-2029,
+              under the thematic area of{" "}
               <span className="text-white font-medium">
                 enhancing access and innovation in digital insurance
               </span>.
@@ -73,7 +70,7 @@ export default function InsurancePlatformPage() {
             <p className="text-sm text-white/70 leading-relaxed">
               InsureRw Assistant lets Rwandan policyholders file and track
               insurance claims through natural conversation in Kinyarwanda or
-              English, on WhatsApp or the web &mdash; removing paperwork and
+              English, on WhatsApp or the web, removing paperwork and
               language barriers from the claims process.
             </p>
           </div>
@@ -103,11 +100,11 @@ export default function InsurancePlatformPage() {
         </div>
 
         <div className="mt-10 text-center">
-          
+          <a
             href="/"
             className="text-sm text-white/50 hover:text-white underline underline-offset-4"
           >
-            &larr; Back to VAF UBWENGE TECH
+            Back to VAF UBWENGE TECH
           </a>
         </div>
       </section>
