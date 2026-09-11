@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { ShieldCheck, Clock, MapPin, Bell, Database, Users, Mail, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
@@ -137,3 +137,4 @@ export default function SmartMotosPrivacyPage() {
     </main>
   )
 }
+

@@ -78,7 +78,7 @@ export default function PrivacyPage() {
             </div>
             <p className="text-muted-foreground leading-relaxed">
               You have the right to access or delete your account. Contact our support team in 
-              Kigali at <a href="mailto:support@wandaatech.rw" className="text-emerald-500 hover:underline">support@wandaatech.rw</a>.
+              Kigali at <a href="mailto:techubwenge@gmail.com" className="text-emerald-500 hover:underline">techubwenge@gmail.com</a>.
             </p>
           </section>
 
