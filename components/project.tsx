@@ -425,7 +425,7 @@ function ArticleReader({
 }
 
 // ─── MAIN EXPORT ───
-export function Project() {
+export function Project({ id = 'project' }: { id?: string } = {}) {
   const [showCaseStudy, setShowCaseStudy] = useState(false)
   const [openArticle, setOpenArticle] = useState<string | null>(null)
 
@@ -447,7 +447,7 @@ export function Project() {
   }
 
   return (
-    <section id="project" className="py-20 sm:py-32 bg-background border-b border-border/50 overflow-hidden">
+    <section id={id} className="py-20 sm:py-32 bg-background border-b border-border/50 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="space-y-16">
 

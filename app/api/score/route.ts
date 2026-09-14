@@ -1,12 +1,8 @@
 // app/api/score/route.ts
 
 import { NextRequest } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { adminDb as supabase } from '@/lib/supabase-admin'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 const CODE_MASTERY_COLUMNS = [
   'confidence',

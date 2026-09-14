@@ -4,25 +4,27 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Menu, X, Home, Info, Briefcase, Users,
-  Mail, ChevronRight, Sun, Moon, Zap, Microscope, FileType, Trophy, ClipboardList, UserPlus, Camera
+  Mail, ChevronRight, Sun, Moon, Zap, Microscope, FileType, Trophy, ClipboardList, UserPlus, Camera, BookOpen
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTheme } from 'next-themes'
 
 const navItems = [
-  { name: 'Home',             href: '/',              icon: Home         },
-  { name: 'Converter',        href: '/converter',     icon: FileType     },
+  { name: 'Home',             href: '/',              icon: Home          },
+  { name: 'Company',          href: '/company',       icon: Info          },
+  { name: 'Leadership',       href: '/team',          icon: Users         },
+  { name: 'Projects',         href: '/projects',      icon: Briefcase     },
+  { name: 'Insights',         href: '/insights',      icon: BookOpen      },
   { name: 'Competitions',     href: '/competitions',  icon: ClipboardList },
-  { name: 'About',            href: '/#about',        icon: Info         },
-  { name: 'Projects',         href: '/projects',      icon: Briefcase    },
-  { name: 'QR Engine',        href: '/qr-engine',     icon: Zap          },
-  { name: 'Intelligence Lab', href: '/lab',           icon: Microscope   },
-  { name: 'Gallery',          href: '/gallery',       icon: Camera       },
-  { name: 'Team',             href: '/#team',         icon: Users        },
+  { name: 'Converter',        href: '/converter',     icon: FileType      },
+  { name: 'QR Engine',        href: '/qr-engine',     icon: Zap           },
+  { name: 'Intelligence Lab', href: '/lab',           icon: Microscope    },
+  { name: 'Gallery',          href: '/gallery',       icon: Camera        },
+  { name: 'Contact',          href: '/contact',       icon: Mail          },
 ]
 
 // Items that get the highlighted emerald style
-const HIGHLIGHTED = ['Converter', 'Competitions', 'Leaderboard', 'Register']
+const HIGHLIGHTED = ['Company', 'Leadership', 'Competitions']
 
 export function Header() {
   const [isOpen, setIsOpen] = useState(false)

@@ -1,7 +1,7 @@
 import { MarqueeBar } from '@/components/marquee-bar'
 import { Header } from '@/components/header'
 import { IntelligenceLab } from '@/components/intelligence-lab' // Ensure this path is correct
-import { Footer } from '@/components/footer'
+import { Footer } from '@/components/site-footer'
 
 export default function LabPage() {
   return (
