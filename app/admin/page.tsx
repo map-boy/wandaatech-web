@@ -98,6 +98,10 @@ CREATE POLICY "Allow admin write gallery" ON gallery ALL TO authenticated USING 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
+import { adminApi } from '@/lib/admin-api'
+import { ImageField } from '@/components/admin/image-field'
+import { SITE_CONTENT_DEFAULTS, CONTENT_SECTIONS } from '@/lib/site-defaults'
+import { slugify } from '@/lib/site-data'
 import { Header } from '@/components/header'
 import Link from 'next/link'
 import {
@@ -108,7 +112,8 @@ import {
   BarChart2, LogOut, Globe, Copy,
   Download, RefreshCw, Filter, Layers, 
   Image, UserCheck, FolderGit2, Film, 
-  ArrowUp, ArrowDown, Search, Upload
+  ArrowUp, ArrowDown, Search, Upload,
+  DollarSign, BookOpen, Inbox, Sparkles, ExternalLink
 } from 'lucide-react'
 
 // ── Existing & Expanded Type Contracts ──────────────────────────────────────
@@ -184,7 +189,45 @@ interface SiteImage {
   alt_text?: string
 }
 
-type Tab = 'overview' | 'sitetext' | 'sections' | 'images' | 'competitions' | 'registrations' | 'leaderboard' | 'submissions' | 'team' | 'projects' | 'gallery'
+type Tab =
+  | 'overview' | 'sitetext' | 'sections' | 'images'
+  | 'competitions' | 'registrations' | 'leaderboard' | 'submissions'
+  | 'team' | 'projects' | 'gallery'
+  | 'articles' | 'monetization' | 'messages'
+
+interface Article {
+  id: string
+  slug: string
+  title: string
+  excerpt: string
+  body: string
+  cover_image: string
+  author: string
+  tags: string[]
+  published: boolean
+  published_at: string
+}
+
+interface AdSlotRow {
+  id: string
+  placement: string
+  slot_id: string
+  format: string
+  layout_key: string | null
+  full_width: boolean
+  enabled: boolean
+  label: string
+}
+
+interface ContactMessage {
+  id: string
+  name: string
+  email: string
+  subject: string
+  message: string
+  handled: boolean
+  created_at: string
+}
 
 // ── CSV Download Helper ────────────────────────────────────────────────────
 
@@ -225,6 +268,13 @@ export default function AdminPage() {
   const [teamMembers,   setTeamMembers]   = useState<any[]>([])
   const [projects,      setProjects]      = useState<any[]>([])
   const [galleryItems,  setGalleryItems]  = useState<any[]>([])
+  const [articles,      setArticles]      = useState<Article[]>([])
+  const [adSlots,       setAdSlots]       = useState<AdSlotRow[]>([])
+  const [messages,      setMessages]      = useState<ContactMessage[]>([])
+
+  // Surfaced in the UI so a deployment missing SUPABASE_SERVICE_ROLE_KEY
+  // says so up front instead of failing on the first save.
+  const [serviceRoleReady, setServiceRoleReady] = useState(true)
 
   // ── Dynamic Operations Form Structs ──
   const [showCompForm, setShowCompForm] = useState(false)
@@ -253,20 +303,34 @@ export default function AdminPage() {
   const [showTeamForm, setShowTeamForm] = useState(false)
   const [editingTeam,  setEditingTeam]  = useState<any | null>(null)
   const [teamForm, setTeamForm] = useState({
-    name: '', role: '', photo: '', bio: '', social_links: '', portfolio_link: '', projects: [] as any[]
+    name: '', role: '', headline: '', location: '', skills: '',
+    photo: '', bio: '', portfolio_link: '',
+    whatsapp: '', email: '', linkedin: '', github: '', website: '',
+    slug: '', sort_order: 0, is_visible: true,
+    projects: [] as any[],
   })
 
   const [showProjectForm, setShowProjectForm] = useState(false)
   const [editingProject,  setEditingProject]  = useState<any | null>(null)
   const [projectForm, setProjectForm] = useState({
-    title: '', description: '', tags: '', image: '', link: ''
+    title: '', description: '', body: '', tags: '', image: '', link: '',
+    status: 'live', featured: false, sort_order: 0, owner_id: '',
   })
 
   const [showGalleryForm, setShowGalleryForm] = useState(false)
   const [editingGallery,  setEditingGallery]  = useState<any | null>(null)
   const [galleryForm, setGalleryForm] = useState({
-    title: '', image_url: '', description: ''
+    title: '', image_url: '', description: '', category: 'General', sort_order: 0
   })
+
+  const [showArticleForm, setShowArticleForm] = useState(false)
+  const [editingArticle,  setEditingArticle]  = useState<Article | null>(null)
+  const [articleForm, setArticleForm] = useState({
+    slug: '', title: '', excerpt: '', body: '', cover_image: '',
+    author: 'VAF UBWENGE TECH', tags: '', published: false,
+  })
+
+  const [seeding, setSeeding] = useState(false)
 
   // ── Competition Scoring Ground Truth Assets ──
   const [truthFile,         setTruthFile]         = useState<File | null>(null)
@@ -287,25 +351,35 @@ export default function AdminPage() {
   const [loading,   setLoading]   = useState(false)
 
   // ── Authentication Management Gateway ──
+  // The password is exchanged for a signed, httpOnly session cookie. Every
+  // write below travels through /api/admin/* and is authorised server-side,
+  // so flipping `authed` in devtools no longer grants anything.
   async function handleAuth() {
     setAuthLoading(true); setAuthError('')
-    try {
-      const res = await fetch('/api/admin-auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
-      })
-      if (res.ok) { setAuthed(true); loadAll() }
-      else        setAuthError('Incorrect password validation sequence.')
-    } catch { setAuthError('Connection failure.') }
+    const res = await adminApi.login(password)
     setAuthLoading(false)
+    if (res.error) { setAuthError(res.error); return }
+    setAuthed(true)
+    setPassword('')
+    loadAll()
   }
+
+  // Restore an existing session on reload instead of asking again.
+  useEffect(() => {
+    let cancelled = false
+    adminApi.session().then((session) => {
+      if (cancelled) return
+      setServiceRoleReady(session.serviceRoleConfigured)
+      if (session.authed) { setAuthed(true); loadAll() }
+    })
+    return () => { cancelled = true }
+  }, [])
 
   // ── Master Data Synchronization Loader ──
   async function loadAll() {
     setLoading(true)
     try {
-      const [c, r, s, st, sc, ss, si, tm, pr, gl] = await Promise.all([
+      const [c, r, s, st, sc, ss, si, tm, pr, gl, ar, ad] = await Promise.all([
         supabase.from('competitions').select('*').order('created_at', { ascending: false }),
         supabase.from('registrations').select('*').order('registered_at', { ascending: false }),
         supabase.from('submissions').select('*').order('created_at', { ascending: false }),
@@ -315,7 +389,9 @@ export default function AdminPage() {
         supabase.from('site_images').select('*').order('uploaded_at', { ascending: false }),
         supabase.from('team').select('*').order('created_at', { ascending: false }),
         supabase.from('projects').select('*').order('created_at', { ascending: false }),
-        supabase.from('gallery').select('*').order('created_at', { ascending: false }),
+        supabase.from('gallery').select('*').order('sort_order', { ascending: true }),
+        supabase.from('articles').select('*').order('published_at', { ascending: false }),
+        supabase.from('ad_slots').select('*').order('placement', { ascending: true }),
       ])
       
       if (c.data)  setCompetitions(c.data)
@@ -328,6 +404,15 @@ export default function AdminPage() {
       if (tm.data) setTeamMembers(tm.data)
       if (pr.data) setProjects(pr.data)
       if (gl.data) setGalleryItems(gl.data)
+      if (ar.data) setArticles(ar.data as Article[])
+      if (ad.data) setAdSlots(ad.data as AdSlotRow[])
+
+      // Messages and settings are server-only (no public read policy), so
+      // they come back through the authenticated admin route.
+      const inbox = await adminApi.select('contact_messages', {
+        order: { column: 'created_at', ascending: false },
+      })
+      if (Array.isArray(inbox.data)) setMessages(inbox.data as ContactMessage[])
     } catch (e) {
       console.error('Data pipeline error:', e)
     }
@@ -355,25 +440,31 @@ export default function AdminPage() {
   async function saveSiteContent() {
     if (!contentForm.key.trim() || !contentForm.value.trim()) { flash('Key and Value requirements must be fulfilled.', true); return }
     setSaving(true)
-    let err
-    if (editingContent) {
-      const res = await supabase.from('site_content').update(contentForm).eq('id', editingContent.id)
-      err = res.error
-    } else {
-      const res = await supabase.from('site_content').insert(contentForm)
-      err = res.error
-    }
+    const res = editingContent
+      ? await adminApi.update('site_content', editingContent.id, contentForm)
+      : await adminApi.insert('site_content', contentForm)
     setSaving(false)
-    if (err) { flash(err.message, true); return }
-    flash('Dynamic text content record set.')
+    if (res.error) { flash(res.error, true); return }
+    flash('Content saved. It is live on the site now.')
     setShowContentForm(false); loadAll()
   }
 
   async function deleteSiteContent(id: string) {
-    if (!confirm('Permanently remove this custom content key? This action impacts layout render arrays.')) return
-    const { error } = await supabase.from('site_content').delete().eq('id', id)
-    if (error) { flash(error.message, true); return }
-    flash('Content record unlinked.'); loadAll()
+    if (!confirm('Remove this content key? The site falls back to its built-in default text.')) return
+    const res = await adminApi.remove('site_content', id)
+    if (res.error) { flash(res.error, true); return }
+    flash('Content key removed.'); loadAll()
+  }
+
+  /** Adds any content key the code can render but the database is missing. */
+  async function syncContentKeys() {
+    setSeeding(true)
+    const res = await adminApi.seedContent()
+    setSeeding(false)
+    if (res.error) { flash(res.error, true); return }
+    const inserted = (res.data as any)?.inserted ?? 0
+    flash(inserted > 0 ? `Added ${inserted} new editable field(s).` : 'Every editable field is already listed.')
+    loadAll()
   }
 
   // ── Dynamic Navigation Sections Layout CRUD ──────────────────────────────
@@ -392,24 +483,26 @@ export default function AdminPage() {
   async function saveSiteSection() {
     if (!sectionForm.slug.trim() || !sectionForm.title.trim()) { flash('Slug and Title parameters required.', true); return }
     setSaving(true)
-    let err
-    if (editingSection) {
-      const res = await supabase.from('site_sections').update(sectionForm).eq('id', editingSection.id)
-      err = res.error
-    } else {
-      const res = await supabase.from('site_sections').insert(sectionForm)
-      err = res.error
-    }
+    const res = editingSection
+      ? await adminApi.update('site_sections', editingSection.id, sectionForm)
+      : await adminApi.insert('site_sections', sectionForm)
     setSaving(false)
-    if (err) { flash(err.message, true); return }
-    flash('Structural page layout section set.')
+    if (res.error) { flash(res.error, true); return }
+    flash('Section saved.')
     setShowSectionForm(false); loadAll()
   }
 
   async function toggleSectionVisibility(s: SiteSection) {
-    const { error } = await supabase.from('site_sections').update({ is_visible: !s.is_visible }).eq('id', s.id)
-    if (error) { flash(error.message, true); return }
-    flash(`Section state toggled successfully.`); loadAll()
+    const res = await adminApi.update('site_sections', s.id, { is_visible: !s.is_visible })
+    if (res.error) { flash(res.error, true); return }
+    flash(s.is_visible ? 'Section hidden from the site.' : 'Section is now visible.'); loadAll()
+  }
+
+  async function deleteSection(id: string) {
+    if (!confirm('Delete this section entry? The section becomes visible again by default.')) return
+    const res = await adminApi.remove('site_sections', id)
+    if (res.error) { flash(res.error, true); return }
+    flash('Section entry deleted.'); loadAll()
   }
 
   async function moveSectionOrder(s: SiteSection, direction: 'up' | 'down') {
@@ -420,8 +513,8 @@ export default function AdminPage() {
     
     const sibling = siteSections[targetIdx]
     setLoading(true)
-    await supabase.from('site_sections').update({ sort_order: sibling.sort_order }).eq('id', s.id)
-    await supabase.from('site_sections').update({ sort_order: s.sort_order }).eq('id', sibling.id)
+    await adminApi.update('site_sections', s.id, { sort_order: sibling.sort_order })
+    await adminApi.update('site_sections', sibling.id, { sort_order: s.sort_order })
     loadAll()
   }
 
@@ -429,35 +522,72 @@ export default function AdminPage() {
   async function saveSiteImage() {
     if (!imageForm.key.trim() || !imageForm.public_url.trim()) { flash('Key lookup reference and asset URL mapping required.', true); return }
     setSaving(true)
-    const { error } = await supabase.from('site_images').insert({ ...imageForm })
+    const res = await adminApi.insert('site_images', { ...imageForm })
     setSaving(false)
-    if (error) { flash(error.message, true); return }
-    flash('Dynamic asset mapping saved successfully.')
+    if (res.error) { flash(res.error, true); return }
+    flash('Image added to the media library.')
     setShowImageForm(false); setImageForm({ key: '', public_url: '', alt_text: '' }); loadAll()
   }
 
   async function deleteSiteImage(id: string) {
-    if (!confirm('Purge this asset catalog record? All referencing rendering objects may lose asset linkages.')) return
-    const { error } = await supabase.from('site_images').delete().eq('id', id)
-    if (error) { flash(error.message, true); return }
-    flash('Asset map cleared.'); loadAll()
+    if (!confirm('Remove this image from the library? Anything already using its URL keeps working.')) return
+    const res = await adminApi.remove('site_images', id)
+    if (res.error) { flash(res.error, true); return }
+    flash('Image removed from the library.'); loadAll()
   }
 
   // ── Team Directory CRUD Controls ─────────────────────────────────────────
+  const EMPTY_TEAM_FORM = {
+    name: '', role: '', headline: '', location: '', skills: '',
+    photo: '', bio: '', portfolio_link: '',
+    whatsapp: '', email: '', linkedin: '', github: '', website: '',
+    slug: '', sort_order: 0, is_visible: true,
+    projects: [] as any[],
+  }
+
   function openNewTeam() {
     setEditingTeam(null)
-    setTeamForm({ name: '', role: '', photo: '', bio: '', social_links: '', portfolio_link: '', projects: [] })
+    setTeamForm({ ...EMPTY_TEAM_FORM })
     setShowTeamForm(true)
   }
 
   function openEditTeam(t: any) {
+    // social_links is stored as a JSON string; unpack it into real fields so
+    // an admin never has to hand-write JSON.
+    let social: Record<string, string> = {}
+    try {
+      const parsed = typeof t.social_links === 'string' ? JSON.parse(t.social_links || '{}') : t.social_links
+      if (parsed && typeof parsed === 'object') social = parsed
+    } catch { social = {} }
+
     setEditingTeam(t)
-    setTeamForm({ name: t.name, role: t.role, photo: t.photo || '', bio: t.bio || '', social_links: t.social_links || '', portfolio_link: t.portfolio_link || '', projects: Array.isArray(t.projects) ? t.projects : [] })
+    setTeamForm({
+      name: t.name ?? '',
+      role: t.role ?? '',
+      headline: t.headline ?? '',
+      location: t.location ?? '',
+      skills: t.skills ?? '',
+      photo: t.photo ?? '',
+      bio: t.bio ?? '',
+      portfolio_link: t.portfolio_link ?? '',
+      whatsapp: social.whatsapp ?? '',
+      email: social.email ?? '',
+      linkedin: social.linkedin ?? '',
+      github: social.github ?? '',
+      website: social.website ?? '',
+      slug: t.slug ?? '',
+      sort_order: Number(t.sort_order ?? 0),
+      is_visible: t.is_visible !== false,
+      projects: Array.isArray(t.projects) ? t.projects : [],
+    })
     setShowTeamForm(true)
   }
 
   function addTeamProject() {
-    setTeamForm({ ...teamForm, projects: [...teamForm.projects, { title: '', description: '', image: '', link: '' }] })
+    setTeamForm({
+      ...teamForm,
+      projects: [...teamForm.projects, { title: '', description: '', image: '', link: '', year: '', tags: '' }],
+    })
   }
 
   function updateTeamProject(i: number, field: string, value: string) {
@@ -471,108 +601,229 @@ export default function AdminPage() {
   }
 
   async function saveTeamMember() {
-    if (!teamForm.name.trim() || !teamForm.role.trim()) { flash('Name and Role parameters required.', true); return }
-    setSaving(true)
-    let err
-    if (editingTeam) {
-      const res = await supabase.from('team').update(teamForm).eq('id', editingTeam.id)
-      err = res.error
-    } else {
-      const res = await supabase.from('team').insert(teamForm)
-      err = res.error
+    if (!teamForm.name.trim() || !teamForm.role.trim()) { flash('Name and role are required.', true); return }
+
+    const payload = {
+      name: teamForm.name.trim(),
+      role: teamForm.role.trim(),
+      headline: teamForm.headline,
+      location: teamForm.location,
+      skills: teamForm.skills,
+      photo: teamForm.photo,
+      bio: teamForm.bio,
+      portfolio_link: teamForm.portfolio_link,
+      // Repacked into the JSON column the public site reads.
+      social_links: JSON.stringify({
+        whatsapp: teamForm.whatsapp,
+        email: teamForm.email,
+        linkedin: teamForm.linkedin,
+        github: teamForm.github,
+        website: teamForm.website,
+      }),
+      // The slug is this member's profile URL, so derive one when it is blank.
+      slug: (teamForm.slug.trim() ? slugify(teamForm.slug) : slugify(teamForm.name)) || null,
+      sort_order: Number(teamForm.sort_order) || 0,
+      is_visible: teamForm.is_visible,
+      projects: teamForm.projects,
     }
+
+    setSaving(true)
+    const res = editingTeam
+      ? await adminApi.update('team', editingTeam.id, payload)
+      : await adminApi.insert('team', payload)
     setSaving(false)
-    if (err) { flash(err.message, true); return }
-    flash('Team directory configuration committed.')
+    if (res.error) { flash(res.error, true); return }
+    flash(`Saved. Profile is live at /team/${payload.slug}`)
     setShowTeamForm(false); loadAll()
   }
 
   async function deleteTeamMember(id: string) {
-    if (!confirm('Delete this team record entity?')) return
-    const { error } = await supabase.from('team').delete().eq('id', id)
-    if (error) { flash(error.message, true); return }
-    flash('Entity deleted.'); loadAll()
+    if (!confirm('Delete this team member and their project portfolio?')) return
+    const res = await adminApi.remove('team', id)
+    if (res.error) { flash(res.error, true); return }
+    flash('Team member deleted.'); loadAll()
   }
 
   // ── Projects Portfolio CRUD Controls ──────────────────────────────────────
   function openNewProject() {
     setEditingProject(null)
-    setProjectForm({ title: '', description: '', tags: '', image: '', link: '' })
+    setProjectForm({ title: '', description: '', body: '', tags: '', image: '', link: '', status: 'live', featured: false, sort_order: 0, owner_id: '' })
     setShowProjectForm(true)
   }
 
   function openEditProject(p: any) {
     setEditingProject(p)
-    setProjectForm({ title: p.title, description: p.description, tags: (p.tags || []).join(', '), image: p.image || '', link: p.link || '' })
+    setProjectForm({
+      title: p.title ?? '',
+      description: p.description ?? '',
+      body: p.body ?? '',
+      tags: (p.tags || []).join(', '),
+      image: p.image ?? '',
+      link: p.link ?? '',
+      status: p.status ?? 'live',
+      featured: Boolean(p.featured),
+      sort_order: Number(p.sort_order ?? 0),
+      owner_id: p.owner_id ?? '',
+    })
     setShowProjectForm(true)
   }
 
   async function saveProject() {
-    if (!projectForm.title.trim()) { flash('Title identifier string required.', true); return }
+    if (!projectForm.title.trim()) { flash('A project title is required.', true); return }
     setSaving(true)
     const payload = {
       title: projectForm.title,
       description: projectForm.description,
+      body: projectForm.body,
       image: projectForm.image,
       link: projectForm.link,
-      tags: projectForm.tags.split(',').map(t => t.trim()).filter(Boolean)
+      status: projectForm.status,
+      featured: projectForm.featured,
+      sort_order: Number(projectForm.sort_order) || 0,
+      // Attributing a project to a member makes it show on their profile.
+      owner_id: projectForm.owner_id || null,
+      slug: slugify(projectForm.title) || null,
+      tags: projectForm.tags.split(',').map(t => t.trim()).filter(Boolean),
     }
-    let err
-    if (editingProject) {
-      const res = await supabase.from('projects').update(payload).eq('id', editingProject.id)
-      err = res.error
-    } else {
-      const res = await supabase.from('projects').insert(payload)
-      err = res.error
-    }
+    const res = editingProject
+      ? await adminApi.update('projects', editingProject.id, payload)
+      : await adminApi.insert('projects', payload)
     setSaving(false)
-    if (err) { flash(err.message, true); return }
-    flash('Project component data mapped.')
+    if (res.error) { flash(res.error, true); return }
+    flash('Project saved.')
     setShowProjectForm(false); loadAll()
   }
 
   async function deleteProject(id: string) {
-    if (!confirm('Purge this project artifact record?')) return
-    const { error } = await supabase.from('projects').delete().eq('id', id)
-    if (error) { flash(error.message, true); return }
-    flash('Project map cleared.'); loadAll()
+    if (!confirm('Delete this project?')) return
+    const res = await adminApi.remove('projects', id)
+    if (res.error) { flash(res.error, true); return }
+    flash('Project deleted.'); loadAll()
   }
 
   // ── Visual Gallery CRUD Controls ──────────────────────────────────────────
   function openNewGallery() {
     setEditingGallery(null)
-    setGalleryForm({ title: '', image_url: '', description: '' })
+    setGalleryForm({ title: '', image_url: '', description: '', category: 'General', sort_order: 0 })
     setShowGalleryForm(true)
   }
 
   function openEditGallery(g: any) {
     setEditingGallery(g)
-    setGalleryForm({ title: g.title, image_url: g.image_url, description: g.description || '' })
+    setGalleryForm({
+      title: g.title ?? '',
+      image_url: g.image_url ?? '',
+      description: g.description ?? '',
+      category: g.category || 'General',
+      sort_order: Number(g.sort_order ?? 0),
+    })
     setShowGalleryForm(true)
   }
 
   async function saveGalleryItem() {
-    if (!galleryForm.title.trim() || !galleryForm.image_url.trim()) { flash('Title and active secure image URI required.', true); return }
-    setSaving(true)
-    let err
-    if (editingGallery) {
-      const res = await supabase.from('gallery').update(galleryForm).eq('id', editingGallery.id)
-      err = res.error
-    } else {
-      const res = await supabase.from('gallery').insert(galleryForm)
-      err = res.error
+    if (!galleryForm.title.trim() || !galleryForm.image_url.trim()) {
+      flash('A caption and an image are required.', true); return
     }
+    setSaving(true)
+    const payload = { ...galleryForm, sort_order: Number(galleryForm.sort_order) || 0 }
+    const res = editingGallery
+      ? await adminApi.update('gallery', editingGallery.id, payload)
+      : await adminApi.insert('gallery', payload)
     setSaving(false)
-    if (err) { flash(err.message, true); return }
-    flash('Gallery database layout committed.')
+    if (res.error) { flash(res.error, true); return }
+    flash('Gallery photo saved.')
     setShowGalleryForm(false); loadAll()
   }
 
   async function deleteGalleryItem(id: string) {
-    if (!confirm('Delete selected gallery structural element?')) return
-    const { error } = await supabase.from('gallery').delete().eq('id', id)
-    if (error) { flash(error.message, true); return }
-    flash('Gallery element purged.'); loadAll()
+    if (!confirm('Delete this gallery photo?')) return
+    const res = await adminApi.remove('gallery', id)
+    if (res.error) { flash(res.error, true); return }
+    flash('Gallery photo deleted.'); loadAll()
+  }
+
+  // ── Articles (public /insights) ───────────────────────────────────────────
+  function openNewArticle() {
+    setEditingArticle(null)
+    setArticleForm({ slug: '', title: '', excerpt: '', body: '', cover_image: '', author: 'VAF UBWENGE TECH', tags: '', published: false })
+    setShowArticleForm(true)
+  }
+
+  function openEditArticle(a: Article) {
+    setEditingArticle(a)
+    setArticleForm({
+      slug: a.slug ?? '',
+      title: a.title ?? '',
+      excerpt: a.excerpt ?? '',
+      body: a.body ?? '',
+      cover_image: a.cover_image ?? '',
+      author: a.author || 'VAF UBWENGE TECH',
+      tags: (a.tags || []).join(', '),
+      published: Boolean(a.published),
+    })
+    setShowArticleForm(true)
+  }
+
+  async function saveArticle() {
+    if (!articleForm.title.trim() || !articleForm.body.trim()) {
+      flash('An article needs a title and a body.', true); return
+    }
+    const slug = slugify(articleForm.slug || articleForm.title)
+    if (!slug) { flash('Could not build a URL from that title — set a slug manually.', true); return }
+
+    setSaving(true)
+    const payload = {
+      slug,
+      title: articleForm.title,
+      excerpt: articleForm.excerpt,
+      body: articleForm.body,
+      cover_image: articleForm.cover_image,
+      author: articleForm.author,
+      tags: articleForm.tags.split(',').map(t => t.trim()).filter(Boolean),
+      published: articleForm.published,
+      updated_at: new Date().toISOString(),
+    }
+    const res = editingArticle
+      ? await adminApi.update('articles', editingArticle.id, payload)
+      : await adminApi.insert('articles', { ...payload, published_at: new Date().toISOString() })
+    setSaving(false)
+    if (res.error) { flash(res.error, true); return }
+    flash(articleForm.published ? `Published at /insights/${slug}` : 'Saved as a draft.')
+    setShowArticleForm(false); loadAll()
+  }
+
+  async function toggleArticlePublished(a: Article) {
+    const res = await adminApi.update('articles', a.id, { published: !a.published })
+    if (res.error) { flash(res.error, true); return }
+    flash(a.published ? 'Article unpublished.' : 'Article published.'); loadAll()
+  }
+
+  async function deleteArticle(id: string) {
+    if (!confirm('Delete this article permanently?')) return
+    const res = await adminApi.remove('articles', id)
+    if (res.error) { flash(res.error, true); return }
+    flash('Article deleted.'); loadAll()
+  }
+
+  // ── Ad slots ──────────────────────────────────────────────────────────────
+  async function saveAdSlot(slot: AdSlotRow, patch: Partial<AdSlotRow>) {
+    const res = await adminApi.update('ad_slots', slot.id, { ...patch, updated_at: new Date().toISOString() })
+    if (res.error) { flash(res.error, true); return }
+    flash('Ad placement updated.'); loadAll()
+  }
+
+  // ── Contact inbox ─────────────────────────────────────────────────────────
+  async function toggleMessageHandled(m: ContactMessage) {
+    const res = await adminApi.update('contact_messages', m.id, { handled: !m.handled })
+    if (res.error) { flash(res.error, true); return }
+    loadAll()
+  }
+
+  async function deleteMessage(id: string) {
+    if (!confirm('Delete this message?')) return
+    const res = await adminApi.remove('contact_messages', id)
+    if (res.error) { flash(res.error, true); return }
+    flash('Message deleted.'); loadAll()
   }
 
   // ── Legacy / Existing Competition Infrastructure Operations ───────────────
@@ -596,15 +847,16 @@ export default function AdminPage() {
     let err
 
     if (editingComp) {
-      const res = await supabase.from('competitions').update(payload).eq('id', editingComp.id)
+      const res = await adminApi.update('competitions', editingComp.id, payload)
       err = res.error
     } else {
-      const res = await supabase.from('competitions').insert(payload).select('id').single()
+      const res = await adminApi.insert('competitions', payload)
       err = res.error
-      if (!err && res.data) competitionId = res.data.id
+      const inserted = Array.isArray(res.data) ? res.data[0] : res.data
+      if (!err && inserted?.id) competitionId = inserted.id
     }
 
-    if (err) { setSaving(false); flash(err.message, true); return }
+    if (err) { setSaving(false); flash(err, true); return }
 
     if (truthFile && competitionId) {
       setTruthUploadStatus('Parsing ground truth metrics matrix…')
@@ -653,10 +905,10 @@ export default function AdminPage() {
   }
 
   async function deleteComp(id: string) {
-    if (!confirm('Purge challenge definition? System cascades will clear submission pipelines.')) return
-    const { error } = await supabase.from('competitions').delete().eq('id', id)
-    if (error) { flash(error.message, true); return }
-    flash('Challenge vector unlinked.'); loadAll()
+    if (!confirm('Delete this competition? Its submissions and registrations go with it.')) return
+    const res = await adminApi.remove('competitions', id)
+    if (res.error) { flash(res.error, true); return }
+    flash('Competition deleted.'); loadAll()
   }
 
   async function downloadGroundTruth(compId: string, compTitle: string) {
@@ -676,13 +928,16 @@ export default function AdminPage() {
   // ── Legacy/Existing General Text Setting Persistence ─────────────────────
   async function saveSiteSetting(key: string, value: string) {
     setSaving(true)
-    const { error } = await supabase.from('admin_settings').upsert({ key, value }, { onConflict: 'key' })
+    const res = await adminApi.upsert('admin_settings', { key, value }, 'key')
     setSaving(false)
-    if (error) { flash(error.message, true); return }
-    flash('Administrative fallback parameters stored.'); loadAll()
+    if (res.error) { flash(res.error, true); return }
+    flash('Setting saved.'); loadAll()
   }
 
-  function logout() { setAuthed(false); setPassword(''); setTab('overview') }
+  async function logout() {
+    await adminApi.logout()
+    setAuthed(false); setPassword(''); setTab('overview')
+  }
 
   // ── Derived Data Visual Analytics ─────────────────────────────────────────
   const participantsByComp = registrations.reduce((acc, r) => {
@@ -782,6 +1037,9 @@ export default function AdminPage() {
     { id: 'team',          label: 'TEAM ROSTER',    icon: UserCheck },
     { id: 'projects',      label: 'PROJECT BLOCKS', icon: FolderGit2 },
     { id: 'gallery',       label: 'GALLERY LAYERS', icon: Film },
+    { id: 'articles',      label: 'ARTICLES',       icon: BookOpen },
+    { id: 'monetization',  label: 'MONETIZATION',   icon: DollarSign },
+    { id: 'messages',      label: 'INBOX',          icon: Inbox },
   ] as const
 
   return (
@@ -820,6 +1078,19 @@ export default function AdminPage() {
             </button>
           </div>
         </div>
+
+        {!serviceRoleReady && (
+          <div className="flex items-start gap-3 p-4 rounded-xl bg-neutral-950 border border-amber-900/50 mb-6 text-sm">
+            <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+            <div className="font-mono text-xs text-amber-300/90 space-y-1">
+              <p className="font-black uppercase tracking-widest">Saving is disabled</p>
+              <p className="text-neutral-400">
+                SUPABASE_SERVICE_ROLE_KEY is not set on the server, so this panel can read but not
+                write. Add it to your environment variables and redeploy.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* NOTIFICATION FEEDBACK STATUS ENGINE */}
         <AnimatePresence mode="wait">
@@ -934,14 +1205,31 @@ export default function AdminPage() {
                 <div className="skeuo-card bg-neutral-950 p-6 rounded-2xl border border-neutral-900 space-y-4">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
-                      <h2 className="text-sm font-mono font-black uppercase tracking-widest text-[hsl(var(--skeuo-accent))]">DYNAMIC HEADLESS CMS MATRIX</h2>
-                      <p className="text-[10px] text-neutral-500 font-mono mt-0.5">MANAGE STRINGS, PARAGRAPHS AND ASSETS ACCROSS SYSTEM PAGES GENERICALLY.</p>
+                      <h2 className="text-sm font-mono font-black uppercase tracking-widest text-[hsl(var(--skeuo-accent))]">SITE CONTENT</h2>
+                      <p className="text-[10px] text-neutral-500 font-mono mt-0.5">
+                        EVERY HEADING, PARAGRAPH, BUTTON LABEL AND IMAGE ON THE PUBLIC SITE. EDIT A VALUE AND IT IS LIVE IMMEDIATELY.
+                      </p>
                     </div>
-                    <button onClick={openNewContent}
-                      className="skeuo-button px-4 py-2 bg-[hsl(var(--skeuo-accent))] text-black font-mono font-black rounded-xl text-xs uppercase tracking-wider flex items-center gap-1.5 cursor-pointer">
-                      <Plus className="w-3.5 h-3.5" /> INSTANTIATE KEY
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button onClick={syncContentKeys} disabled={seeding}
+                        title="Adds every editable field the site knows about. Existing values are never overwritten."
+                        className="skeuo-button px-4 py-2 bg-neutral-900 border border-neutral-800 text-neutral-300 font-mono font-black rounded-xl text-xs uppercase tracking-wider flex items-center gap-1.5 cursor-pointer disabled:opacity-40">
+                        {seeding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                        SYNC FIELDS
+                      </button>
+                      <button onClick={openNewContent}
+                        className="skeuo-button px-4 py-2 bg-[hsl(var(--skeuo-accent))] text-black font-mono font-black rounded-xl text-xs uppercase tracking-wider flex items-center gap-1.5 cursor-pointer">
+                        <Plus className="w-3.5 h-3.5" /> NEW KEY
+                      </button>
+                    </div>
                   </div>
+
+                  {siteContent.length === 0 && (
+                    <div className="skeuo-inset rounded-xl border border-neutral-900 bg-black/40 p-4 text-[11px] font-mono text-neutral-400">
+                      Nothing here yet. Press <span className="text-[hsl(var(--skeuo-accent))] font-black">SYNC FIELDS</span> to
+                      pull in all {SITE_CONTENT_DEFAULTS.length} editable fields with their current text, then change whatever you like.
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                     <div className="skeuo-inset bg-black/40 border border-neutral-900 rounded-xl px-3 py-2 flex items-center">
@@ -954,8 +1242,10 @@ export default function AdminPage() {
                       <Filter className="w-3.5 h-3.5 text-neutral-500 mr-2 shrink-0" />
                       <select value={contentSectionFilter} onChange={(e) => setContentSectionFilter(e.target.value)}
                         className="bg-transparent border-none text-xs text-neutral-400 focus:outline-none w-full font-mono bg-neutral-950">
-                        <option value="all">ALL SITE TEMPLATE SECTIONS</option>
-                        {contentSectionsList.map(sec => <option key={sec} value={sec}>{sec.toUpperCase()}</option>)}
+                        <option value="all">ALL SECTIONS</option>
+                        {Array.from(new Set([...contentSectionsList, ...CONTENT_SECTIONS])).sort().map(sec => (
+                          <option key={sec} value={sec}>{sec.toUpperCase()}</option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -999,14 +1289,28 @@ export default function AdminPage() {
                       </div>
                       <div className="sm:col-span-2 space-y-1">
                         <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">CONTENT DATA STORAGE VALUE</label>
-                        <textarea value={contentForm.value} onChange={(e) => setContentForm({...contentForm, value: e.target.value})} rows={4} placeholder="Input string payload values to render live..."
-                          className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none resize-none" />
+                        <textarea value={contentForm.value} onChange={(e) => setContentForm({...contentForm, value: e.target.value})} rows={6} placeholder="The text shown on the site."
+                          className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none resize-y leading-relaxed" />
+                        <p className="text-[9px] text-neutral-600">
+                          List fields take one item per line. Fields shown as &ldquo;A | B&rdquo; take a value and a label separated by a pipe.
+                        </p>
                       </div>
                     </div>
 
+                    {contentForm.type === 'image' && (
+                      <div className="border-t border-neutral-900 pt-4">
+                        <ImageField
+                          label="OR UPLOAD AN IMAGE FOR THIS FIELD"
+                          folder="content"
+                          value={contentForm.value}
+                          onChange={(url) => setContentForm({ ...contentForm, value: url })}
+                        />
+                      </div>
+                    )}
+
                     <button onClick={saveSiteContent} disabled={saving}
-                      className="skeuo-button w-full py-3 bg-[hsl(var(--skeuo-accent))] text-black font-mono font-black text-xs uppercase tracking-wider rounded-xl cursor-pointer">
-                      {saving ? 'COMMITTING MATRIX MODES...' : 'STORE SYSTEM LAYOUT CONFIG'}
+                      className="skeuo-button w-full py-3 bg-[hsl(var(--skeuo-accent))] text-black font-mono font-black text-xs uppercase tracking-wider rounded-xl cursor-pointer disabled:opacity-40">
+                      {saving ? 'SAVING…' : 'SAVE CONTENT'}
                     </button>
                   </div>
                 )}
@@ -1167,11 +1471,13 @@ export default function AdminPage() {
                         <input type="text" value={imageForm.key} onChange={(e) => setImageForm({...imageForm, key: e.target.value})} placeholder="e.g. landing_hero_background_path"
                           className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none" />
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">SECURE PUBLIC RESOURCE ACCESSIBILITY URL (SUPABASE / CDN)</label>
-                        <input type="text" value={imageForm.public_url} onChange={(e) => setImageForm({...imageForm, public_url: e.target.value})} placeholder="https://yourbucket.supabase.co/storage/v1/object/public/..."
-                          className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none" />
-                      </div>
+                      <ImageField
+                        label="IMAGE"
+                        folder="library"
+                        value={imageForm.public_url}
+                        onChange={(url) => setImageForm({ ...imageForm, public_url: url })}
+                        hint="Uploads are added to this library automatically."
+                      />
                       <div className="space-y-1">
                         <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">ACCESSIBILITY FRAMEWORK ALT CONFIGURATION DESCRIPTION</label>
                         <input type="text" value={imageForm.alt_text} onChange={(e) => setImageForm({...imageForm, alt_text: e.target.value})} placeholder="e.g. Dark abstract circuitry schematic"
@@ -1577,40 +1883,101 @@ export default function AdminPage() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1">
-                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">FULL LEGAL INDIVIDUAL NAME</label>
-                        <input type="text" value={teamForm.name} onChange={(e) => setTeamForm({...teamForm, name: e.target.value})} placeholder="e.g. Dr. Jean de Dieu"
+                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">FULL NAME</label>
+                        <input type="text" value={teamForm.name} onChange={(e) => setTeamForm({...teamForm, name: e.target.value})} placeholder="e.g. Jean de Dieu Uwase"
                           className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none" />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">OFFICIAL SYSTEM OPERATIONAL ROLE</label>
-                        <input type="text" value={teamForm.role} onChange={(e) => setTeamForm({...teamForm, role: e.target.value})} placeholder="e.g. Principal Lead Architect / Researcher"
+                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">ROLE / TITLE</label>
+                        <input type="text" value={teamForm.role} onChange={(e) => setTeamForm({...teamForm, role: e.target.value})} placeholder="e.g. Lead Data Scientist"
+                          className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none" />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <ImageField
+                          label="PROFILE PHOTO"
+                          folder="team"
+                          value={teamForm.photo}
+                          onChange={(url) => setTeamForm({ ...teamForm, photo: url })}
+                          hint="Portrait crops best (4:5). Max 8 MB."
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">ONE-LINE HEADLINE</label>
+                        <input type="text" value={teamForm.headline} onChange={(e) => setTeamForm({...teamForm, headline: e.target.value})} placeholder="e.g. Builds the models behind WANDAA AI"
                           className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none" />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">SECURE AVATAR PHOTO MEDIA LINK</label>
-                        <input type="text" value={teamForm.photo} onChange={(e) => setTeamForm({...teamForm, photo: e.target.value})} placeholder="https://yourbucket.co/.../avatar.jpg"
+                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">LOCATION</label>
+                        <input type="text" value={teamForm.location} onChange={(e) => setTeamForm({...teamForm, location: e.target.value})} placeholder="e.g. Kigali, Rwanda"
                           className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none" />
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">PORTFOLIO DEPLOYMENT MATRIX URL</label>
-                        <input type="text" value={teamForm.portfolio_link} onChange={(e) => setTeamForm({...teamForm, portfolio_link: e.target.value})} placeholder="https://jeandedieu.wandaa.tech"
-                          className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none" />
-                      </div>
+
                       <div className="sm:col-span-2 space-y-1">
-                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">SOCIAL MEDIA SECURE MAP JSON CONTEXT LINK TRACE</label>
-                        <input type="text" value={teamForm.social_links} onChange={(e) => setTeamForm({...teamForm, social_links: e.target.value})} placeholder="github: handle, linkedin: string"
+                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">SKILLS (COMMA SEPARATED)</label>
+                        <input type="text" value={teamForm.skills} onChange={(e) => setTeamForm({...teamForm, skills: e.target.value})} placeholder="Python, PyTorch, FastAPI, Next.js"
                           className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none" />
                       </div>
+
                       <div className="sm:col-span-2 space-y-1">
-                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">BIOGRAPHICAL REPOSITORY DIGEST STATEMENT</label>
-                        <textarea value={teamForm.bio} onChange={(e) => setTeamForm({...teamForm, bio: e.target.value})} rows={3} placeholder="Provide professional experience matrix breakdown..."
-                          className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none resize-none" />
+                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">BIOGRAPHY (BLANK LINE = NEW PARAGRAPH)</label>
+                        <textarea value={teamForm.bio} onChange={(e) => setTeamForm({...teamForm, bio: e.target.value})} rows={5} placeholder="What they do, what they have built, what they are working on now."
+                          className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none resize-y" />
                       </div>
                     </div>
 
+                    {/* ── Contact & social ── */}
+                    <div className="space-y-3 border-t border-neutral-900 pt-4">
+                      <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">CONTACT &amp; SOCIAL LINKS</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {([
+                          ['email',    'Email address',  'jean@wandaatech.rw'],
+                          ['whatsapp', 'WhatsApp number','+250 7XX XXX XXX'],
+                          ['linkedin', 'LinkedIn URL',   'linkedin.com/in/handle'],
+                          ['github',   'GitHub URL',     'github.com/handle'],
+                          ['website',  'Personal site',  'https://example.com'],
+                          ['portfolio_link', 'Portfolio URL', 'https://portfolio.example.com'],
+                        ] as const).map(([field, label, placeholder]) => (
+                          <div key={field} className="space-y-1">
+                            <label className="text-[9px] text-neutral-500 font-bold uppercase tracking-wider">{label}</label>
+                            <input type="text" value={(teamForm as any)[field]} onChange={(e) => setTeamForm({ ...teamForm, [field]: e.target.value })} placeholder={placeholder}
+                              className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-3 py-2 text-neutral-200 focus:outline-none text-xs" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* ── Publishing ── */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-neutral-900 pt-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">PROFILE URL</label>
+                        <input type="text" value={teamForm.slug} onChange={(e) => setTeamForm({...teamForm, slug: e.target.value})} placeholder={slugify(teamForm.name) || 'auto from name'}
+                          className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-3 py-2 text-neutral-200 focus:outline-none text-xs" />
+                        <p className="text-[9px] text-neutral-600">/team/{teamForm.slug ? slugify(teamForm.slug) : (slugify(teamForm.name) || '…')}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">ORDER</label>
+                        <input type="number" value={teamForm.sort_order} onChange={(e) => setTeamForm({...teamForm, sort_order: Number(e.target.value)})}
+                          className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-3 py-2 text-neutral-200 focus:outline-none text-xs" />
+                        <p className="text-[9px] text-neutral-600">Lower shows first.</p>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">VISIBILITY</label>
+                        <button type="button" onClick={() => setTeamForm({ ...teamForm, is_visible: !teamForm.is_visible })}
+                          className={`w-full rounded-xl px-3 py-2 text-xs font-black uppercase tracking-wider cursor-pointer border ${teamForm.is_visible ? 'bg-[hsl(var(--skeuo-accent))] text-black border-[hsl(var(--skeuo-accent))]' : 'bg-neutral-900 text-neutral-400 border-neutral-800'}`}>
+                          {teamForm.is_visible ? 'Shown on site' : 'Hidden'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* ── Portfolio ── */}
                     <div className="space-y-3 border-t border-neutral-900 pt-4">
                       <div className="flex items-center justify-between">
-                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">MACHINE LEARNING PORTFOLIO PROJECT ARRAY</label>
+                        <div>
+                          <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">PROJECTS THEY BUILT</label>
+                          <p className="text-[9px] text-neutral-600 mt-0.5">Everything listed here appears on their public profile page.</p>
+                        </div>
                         <button onClick={addTeamProject} type="button"
                           className="skeuo-button px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-[hsl(var(--skeuo-accent))] flex items-center gap-1 cursor-pointer">
                           <Plus className="w-3 h-3" /> ADD PROJECT
@@ -1618,7 +1985,7 @@ export default function AdminPage() {
                       </div>
 
                       {teamForm.projects.length === 0 && (
-                        <p className="text-[10px] text-neutral-600 text-center py-3">No portfolio projects added.</p>
+                        <p className="text-[10px] text-neutral-600 text-center py-3">No projects added yet.</p>
                       )}
 
                       {teamForm.projects.map((proj: any, i: number) => (
@@ -1629,17 +1996,33 @@ export default function AdminPage() {
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
-                          <input type="text" value={proj.title} onChange={(e) => updateTeamProject(i, 'title', e.target.value)} placeholder="Project title"
+
+                          <input type="text" value={proj.title ?? ''} onChange={(e) => updateTeamProject(i, 'title', e.target.value)} placeholder="Project title"
                             className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-lg px-3 py-2 text-neutral-200 focus:outline-none text-xs" />
-                          <textarea value={proj.description} onChange={(e) => updateTeamProject(i, 'description', e.target.value)} rows={2} placeholder="Short description"
-                            className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-lg px-3 py-2 text-neutral-200 focus:outline-none text-xs resize-none" />
-                          <input type="text" value={proj.image} onChange={(e) => updateTeamProject(i, 'image', e.target.value)} placeholder="Image URL (optional)"
-                            className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-lg px-3 py-2 text-neutral-200 focus:outline-none text-xs" />
-                          <input type="text" value={proj.link} onChange={(e) => updateTeamProject(i, 'link', e.target.value)} placeholder="Streamlit / Hugging Face link"
+
+                          <textarea value={proj.description ?? ''} onChange={(e) => updateTeamProject(i, 'description', e.target.value)} rows={3} placeholder="What it does and what they contributed"
+                            className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-lg px-3 py-2 text-neutral-200 focus:outline-none text-xs resize-y" />
+
+                          <ImageField
+                            label="PROJECT IMAGE"
+                            folder="projects"
+                            value={proj.image ?? ''}
+                            onChange={(url) => updateTeamProject(i, 'image', url)}
+                          />
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <input type="text" value={proj.link ?? ''} onChange={(e) => updateTeamProject(i, 'link', e.target.value)} placeholder="Live link / repo"
+                              className="skeuo-inset sm:col-span-2 w-full bg-black/60 border border-neutral-800 rounded-lg px-3 py-2 text-neutral-200 focus:outline-none text-xs" />
+                            <input type="text" value={proj.year ?? ''} onChange={(e) => updateTeamProject(i, 'year', e.target.value)} placeholder="Year"
+                              className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-lg px-3 py-2 text-neutral-200 focus:outline-none text-xs" />
+                          </div>
+
+                          <input type="text" value={proj.tags ?? ''} onChange={(e) => updateTeamProject(i, 'tags', e.target.value)} placeholder="Tags, comma separated"
                             className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-lg px-3 py-2 text-neutral-200 focus:outline-none text-xs" />
                         </div>
                       ))}
                     </div>
+
 
                     <button onClick={saveTeamMember} disabled={saving}
                       className="skeuo-button w-full py-3 bg-[hsl(var(--skeuo-accent))] text-black font-mono font-black text-xs uppercase tracking-wider rounded-xl cursor-pointer">
@@ -1706,10 +2089,13 @@ export default function AdminPage() {
                         <input type="text" value={projectForm.title} onChange={(e) => setProjectForm({...projectForm, title: e.target.value})} placeholder="e.g. Ubwenge Visual CNN Layer"
                           className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none" />
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">GRAPHICAL LANDING COVER BANNER IMAGE LINK</label>
-                        <input type="text" value={projectForm.image} onChange={(e) => setProjectForm({...projectForm, image: e.target.value})} placeholder="https://yourbucket.co/.../cover.png"
-                          className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none" />
+                      <div className="sm:col-span-2">
+                        <ImageField
+                          label="COVER IMAGE"
+                          folder="projects"
+                          value={projectForm.image}
+                          onChange={(url) => setProjectForm({ ...projectForm, image: url })}
+                        />
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">LIVE ARTIFACT HYPERLINK DEPLOYMENT URL</label>
@@ -1722,9 +2108,36 @@ export default function AdminPage() {
                           className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none" />
                       </div>
                       <div className="sm:col-span-2 space-y-1">
-                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">SYSTEM FUNCTIONAL DESIGN DESCRIPTION STATEMENT</label>
-                        <textarea value={projectForm.description} onChange={(e) => setProjectForm({...projectForm, description: e.target.value})} rows={3} placeholder="State framework dependencies, core use cases..."
-                          className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none resize-none" />
+                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">SHORT DESCRIPTION (SHOWN ON CARDS)</label>
+                        <textarea value={projectForm.description} onChange={(e) => setProjectForm({...projectForm, description: e.target.value})} rows={3} placeholder="One or two sentences on what it does and who it is for."
+                          className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none resize-y" />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">BUILT BY</label>
+                        <select value={projectForm.owner_id} onChange={(e) => setProjectForm({...projectForm, owner_id: e.target.value})}
+                          className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none cursor-pointer">
+                          <option value="">Company project (nobody in particular)</option>
+                          {teamMembers.map((m) => (
+                            <option key={m.id} value={m.id}>{m.name}</option>
+                          ))}
+                        </select>
+                        <p className="text-[9px] text-neutral-600">Also lists this project on that person&rsquo;s profile page.</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">ORDER</label>
+                          <input type="number" value={projectForm.sort_order} onChange={(e) => setProjectForm({...projectForm, sort_order: Number(e.target.value)})}
+                            className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-3 py-2.5 text-neutral-200 focus:outline-none" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">FEATURED</label>
+                          <button type="button" onClick={() => setProjectForm({ ...projectForm, featured: !projectForm.featured })}
+                            className={`w-full rounded-xl px-3 py-2.5 text-[10px] font-black uppercase tracking-wider cursor-pointer border ${projectForm.featured ? 'bg-[hsl(var(--skeuo-accent))] text-black border-[hsl(var(--skeuo-accent))]' : 'bg-neutral-900 text-neutral-400 border-neutral-800'}`}>
+                            {projectForm.featured ? 'Featured' : 'Standard'}
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -1789,10 +2202,24 @@ export default function AdminPage() {
                         <input type="text" value={galleryForm.title} onChange={(e) => setGalleryForm({...galleryForm, title: e.target.value})} placeholder="e.g. AI Engine Model Loss Curve Diagram"
                           className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none" />
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">SECURE PUBLIC RESOURCE ASSET URL TARGET</label>
-                        <input type="text" value={galleryForm.image_url} onChange={(e) => setGalleryForm({...galleryForm, image_url: e.target.value})} placeholder="https://yourbucket.co/.../diagram.png"
-                          className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none" />
+                      <ImageField
+                        label="PHOTO"
+                        folder="gallery"
+                        value={galleryForm.image_url}
+                        onChange={(url) => setGalleryForm({ ...galleryForm, image_url: url })}
+                      />
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">CATEGORY (FILTER BUTTON)</label>
+                          <input type="text" value={galleryForm.category} onChange={(e) => setGalleryForm({...galleryForm, category: e.target.value})} placeholder="Team / Events / Projects / Lab"
+                            className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">ORDER</label>
+                          <input type="number" value={galleryForm.sort_order} onChange={(e) => setGalleryForm({...galleryForm, sort_order: Number(e.target.value)})}
+                            className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none" />
+                        </div>
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">METADATA CONTEXT CAPTION DESCRIPTION</label>
@@ -1833,9 +2260,358 @@ export default function AdminPage() {
               </div>
             )}
 
+
+            {/* ──────────────────────────────────────────────────────────────
+                TAB: ARTICLES — the public /insights feed
+                ────────────────────────────────────────────────────────────── */}
+            {tab === 'articles' && (
+              <div className="space-y-6">
+                <div className="skeuo-card bg-neutral-950 p-6 rounded-2xl border border-neutral-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-sm font-mono font-black uppercase tracking-widest text-[hsl(var(--skeuo-accent))]">ARTICLES</h2>
+                    <p className="text-[10px] text-neutral-500 font-mono mt-0.5">
+                      PUBLISHED AT /INSIGHTS. ORIGINAL WRITING IS WHAT ADSENSE REVIEWS MOST CLOSELY.
+                    </p>
+                  </div>
+                  <button onClick={openNewArticle}
+                    className="skeuo-button px-4 py-2 bg-[hsl(var(--skeuo-accent))] text-black font-mono font-black rounded-xl text-xs uppercase tracking-wider flex items-center gap-1.5 cursor-pointer">
+                    <Plus className="w-3.5 h-3.5" /> NEW ARTICLE
+                  </button>
+                </div>
+
+                {showArticleForm && (
+                  <div className="skeuo-card bg-neutral-950 p-6 rounded-2xl border border-neutral-800 space-y-4 font-mono text-xs">
+                    <div className="flex justify-between items-center border-b border-neutral-900 pb-2">
+                      <h3 className="text-xs font-black text-[hsl(var(--skeuo-accent))] uppercase tracking-widest">
+                        {editingArticle ? 'EDIT ARTICLE' : 'WRITE ARTICLE'}
+                      </h3>
+                      <button onClick={() => setShowArticleForm(false)} className="text-neutral-500 hover:text-neutral-300"><X className="w-4 h-4" /></button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="sm:col-span-2 space-y-1">
+                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">TITLE</label>
+                        <input type="text" value={articleForm.title} onChange={(e) => setArticleForm({...articleForm, title: e.target.value})} placeholder="What we learned training a Kinyarwanda tokenizer"
+                          className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none" />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <ImageField
+                          label="COVER IMAGE"
+                          folder="articles"
+                          value={articleForm.cover_image}
+                          onChange={(url) => setArticleForm({ ...articleForm, cover_image: url })}
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2 space-y-1">
+                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">SUMMARY (SHOWN ON CARDS AND IN SEARCH RESULTS)</label>
+                        <textarea value={articleForm.excerpt} onChange={(e) => setArticleForm({...articleForm, excerpt: e.target.value})} rows={2} placeholder="Two sentences that make someone want to read it."
+                          className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none resize-y" />
+                      </div>
+
+                      <div className="sm:col-span-2 space-y-1">
+                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">BODY</label>
+                        <textarea value={articleForm.body} onChange={(e) => setArticleForm({...articleForm, body: e.target.value})} rows={16} placeholder={'Blank line = new paragraph.\n\n## Heading\n### Smaller heading\n- bullet\n> quote'}
+                          className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none resize-y leading-relaxed" />
+                        <p className="text-[9px] text-neutral-600">
+                          Blank line starts a paragraph. Lines beginning &ldquo;## &rdquo;, &ldquo;### &rdquo;, &ldquo;- &rdquo; or &ldquo;&gt; &rdquo; become headings, bullets and quotes.
+                        </p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">AUTHOR</label>
+                        <input type="text" value={articleForm.author} onChange={(e) => setArticleForm({...articleForm, author: e.target.value})}
+                          className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">TAGS (COMMA SEPARATED)</label>
+                        <input type="text" value={articleForm.tags} onChange={(e) => setArticleForm({...articleForm, tags: e.target.value})} placeholder="NLP, Kinyarwanda, Training"
+                          className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none" />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">URL</label>
+                        <input type="text" value={articleForm.slug} onChange={(e) => setArticleForm({...articleForm, slug: e.target.value})} placeholder={slugify(articleForm.title) || 'auto from title'}
+                          className="skeuo-inset w-full bg-black/60 border border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-200 focus:outline-none" />
+                        <p className="text-[9px] text-neutral-600">/insights/{slugify(articleForm.slug || articleForm.title) || '…'}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">STATUS</label>
+                        <button type="button" onClick={() => setArticleForm({ ...articleForm, published: !articleForm.published })}
+                          className={`w-full rounded-xl px-3 py-2.5 text-[10px] font-black uppercase tracking-wider cursor-pointer border ${articleForm.published ? 'bg-[hsl(var(--skeuo-accent))] text-black border-[hsl(var(--skeuo-accent))]' : 'bg-neutral-900 text-neutral-400 border-neutral-800'}`}>
+                          {articleForm.published ? 'Published' : 'Draft'}
+                        </button>
+                      </div>
+                    </div>
+
+                    <button onClick={saveArticle} disabled={saving}
+                      className="skeuo-button w-full py-3 bg-[hsl(var(--skeuo-accent))] text-black font-mono font-black text-xs uppercase tracking-wider rounded-xl cursor-pointer disabled:opacity-40">
+                      {saving ? 'SAVING…' : 'SAVE ARTICLE'}
+                    </button>
+                  </div>
+                )}
+
+                <div className="space-y-3 font-mono">
+                  {articles.map((article) => (
+                    <div key={article.id} className="skeuo-card bg-neutral-950 p-5 rounded-xl border border-neutral-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${article.published ? 'bg-[hsl(var(--skeuo-accent))]/15 text-[hsl(var(--skeuo-accent))]' : 'bg-neutral-900 text-neutral-500'}`}>
+                            {article.published ? 'Live' : 'Draft'}
+                          </span>
+                          <span className="text-[9px] text-neutral-600">/insights/{article.slug}</span>
+                        </div>
+                        <p className="text-xs font-black text-neutral-200 truncate">{article.title}</p>
+                        <p className="text-[10px] text-neutral-500 line-clamp-2">{article.excerpt}</p>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {article.published && (
+                          <Link href={`/insights/${article.slug}`} target="_blank"
+                            className="px-3 py-1.5 text-[10px] border border-neutral-900 text-neutral-400 rounded-md font-bold uppercase hover:text-white flex items-center gap-1">
+                            <ExternalLink className="w-3 h-3" /> View
+                          </Link>
+                        )}
+                        <button onClick={() => toggleArticlePublished(article)}
+                          className="px-3 py-1.5 text-[10px] border border-neutral-900 text-neutral-400 rounded-md font-bold uppercase hover:text-white cursor-pointer">
+                          {article.published ? 'Unpublish' : 'Publish'}
+                        </button>
+                        <button onClick={() => openEditArticle(article)}
+                          className="px-3 py-1.5 text-[10px] border border-neutral-900 text-neutral-400 rounded-md font-bold uppercase hover:text-white cursor-pointer">
+                          Edit
+                        </button>
+                        <button onClick={() => deleteArticle(article.id)}
+                          className="px-3 py-1.5 text-[10px] border border-neutral-900 text-neutral-500 rounded-md font-bold uppercase hover:text-red-400 cursor-pointer">
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {articles.length === 0 && (
+                    <p className="text-center text-neutral-600 text-xs py-8">
+                      No articles yet. AdSense reviews sites for original, substantial content — a handful of real write-ups here makes a material difference.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ──────────────────────────────────────────────────────────────
+                TAB: MONETIZATION — AdSense readiness and ad placements
+                ────────────────────────────────────────────────────────────── */}
+            {tab === 'monetization' && (
+              <div className="space-y-6">
+                <div className="skeuo-card bg-neutral-950 p-6 rounded-2xl border border-neutral-900">
+                  <h2 className="text-sm font-mono font-black uppercase tracking-widest text-[hsl(var(--skeuo-accent))]">ADSENSE READINESS</h2>
+                  <p className="text-[10px] text-neutral-500 font-mono mt-0.5">EVERYTHING GOOGLE CHECKS BEFORE APPROVING A SITE.</p>
+
+                  <div className="mt-5 space-y-2">
+                    {(() => {
+                      const checks = [
+                        { label: 'Privacy policy with third-party / Google ad cookie disclosures', done: true, note: '/privacy' },
+                        { label: 'Cookie policy listing every cookie category', done: true, note: '/cookie-policy' },
+                        { label: 'Terms of service', done: true, note: '/terms' },
+                        { label: 'Disclaimer covering ads and AI output', done: true, note: '/disclaimer' },
+                        { label: 'Reachable contact page with a working form', done: true, note: '/contact' },
+                        { label: 'About / company page explaining who publishes the site', done: true, note: '/company' },
+                        { label: 'Consent Mode v2 with a real reject option', done: true, note: 'Banner on every page' },
+                        { label: 'ads.txt served at the domain root', done: true, note: '/ads.txt' },
+                        { label: 'Sitemap and robots.txt allowing AdSense crawlers', done: true, note: '/sitemap.xml' },
+                        { label: 'At least 10 substantial original articles', done: articles.filter(a => a.published).length >= 10, note: `${articles.filter(a => a.published).length} published` },
+                        { label: 'Team profiles with real names and photos', done: teamMembers.length > 0, note: `${teamMembers.length} member(s)` },
+                        { label: 'At least one ad placement enabled with a real slot ID', done: adSlots.some(a => a.enabled && a.slot_id), note: `${adSlots.filter(a => a.enabled && a.slot_id).length} live` },
+                      ]
+                      const remaining = checks.filter(c => !c.done).length
+                      return (
+                        <>
+                          <p className="text-[10px] font-mono text-neutral-400 mb-3">
+                            {remaining === 0
+                              ? 'All checks pass — you are ready to submit the site for review.'
+                              : `${remaining} item(s) still to do before submitting for review.`}
+                          </p>
+                          {checks.map((check) => (
+                            <div key={check.label} className="flex items-start gap-3 py-2 border-b border-neutral-900/60 last:border-0">
+                              {check.done
+                                ? <CheckCircle className="w-4 h-4 text-[hsl(var(--skeuo-accent))] shrink-0 mt-0.5" />
+                                : <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />}
+                              <div className="min-w-0">
+                                <p className="text-xs text-neutral-300">{check.label}</p>
+                                <p className="text-[10px] font-mono text-neutral-600">{check.note}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </>
+                      )
+                    })()}
+                  </div>
+                </div>
+
+                <div className="skeuo-card bg-neutral-950 p-6 rounded-2xl border border-neutral-900 space-y-4">
+                  <div>
+                    <h2 className="text-sm font-mono font-black uppercase tracking-widest text-[hsl(var(--skeuo-accent))]">AD PLACEMENTS</h2>
+                    <p className="text-[10px] text-neutral-500 font-mono mt-0.5">
+                      PASTE THE SLOT ID FROM ADSENSE → ADS → BY AD UNIT, THEN ENABLE. A PLACEMENT WITH NO SLOT ID RENDERS NOTHING.
+                    </p>
+                  </div>
+
+                  {adSlots.length === 0 && (
+                    <p className="text-center text-neutral-600 text-xs py-8 font-mono">
+                      No placements found. Run the SQL migration in supabase/migrations to create them.
+                    </p>
+                  )}
+
+                  <div className="space-y-3">
+                    {adSlots.map((slot) => (
+                      <AdSlotEditor key={slot.id} slot={slot} onSave={saveAdSlot} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ──────────────────────────────────────────────────────────────
+                TAB: INBOX — messages from the contact form
+                ────────────────────────────────────────────────────────────── */}
+            {tab === 'messages' && (
+              <div className="space-y-6">
+                <div className="skeuo-card bg-neutral-950 p-6 rounded-2xl border border-neutral-900">
+                  <h2 className="text-sm font-mono font-black uppercase tracking-widest text-[hsl(var(--skeuo-accent))]">CONTACT INBOX</h2>
+                  <p className="text-[10px] text-neutral-500 font-mono mt-0.5">
+                    {messages.filter(m => !m.handled).length} UNREAD OF {messages.length} TOTAL.
+                  </p>
+                </div>
+
+                <div className="space-y-3 font-mono">
+                  {messages.map((message) => (
+                    <div key={message.id} className={`skeuo-card p-5 rounded-xl border space-y-3 ${message.handled ? 'bg-neutral-950/60 border-neutral-900' : 'bg-neutral-950 border-neutral-800'}`}>
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-black text-neutral-200">
+                            {message.name}
+                            <a href={`mailto:${message.email}`} className="ml-2 font-normal text-[hsl(var(--skeuo-accent))] hover:underline">{message.email}</a>
+                          </p>
+                          {message.subject && <p className="text-[10px] text-neutral-500 mt-0.5">{message.subject}</p>}
+                        </div>
+                        <span className="text-[9px] text-neutral-600 shrink-0">
+                          {message.created_at ? new Date(message.created_at).toLocaleString() : ''}
+                        </span>
+                      </div>
+
+                      <p className="text-[11px] text-neutral-400 leading-relaxed whitespace-pre-wrap">{message.message}</p>
+
+                      <div className="flex items-center gap-2 border-t border-neutral-900/50 pt-3">
+                        <button onClick={() => toggleMessageHandled(message)}
+                          className="px-3 py-1.5 text-[10px] border border-neutral-900 text-neutral-400 rounded-md font-bold uppercase hover:text-white cursor-pointer">
+                          {message.handled ? 'Mark unread' : 'Mark handled'}
+                        </button>
+                        <button onClick={() => deleteMessage(message.id)}
+                          className="px-3 py-1.5 text-[10px] border border-neutral-900 text-neutral-500 rounded-md font-bold uppercase hover:text-red-400 cursor-pointer">
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {messages.length === 0 && (
+                    <p className="text-center text-neutral-600 text-xs py-8">No messages yet.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
           </section>
         </div>
       </main>
+    </div>
+  )
+}
+// ──────────────────────────────────────────────────────────────────────────
+// AD PLACEMENT EDITOR
+// Kept as a separate component so each row holds its own draft state and
+// typing in one slot does not re-render the whole panel.
+// ──────────────────────────────────────────────────────────────────────────
+function AdSlotEditor({
+  slot,
+  onSave,
+}: {
+  slot: AdSlotRow
+  onSave: (slot: AdSlotRow, patch: Partial<AdSlotRow>) => Promise<void>
+}) {
+  const [slotId, setSlotId] = useState(slot.slot_id ?? '')
+  const [format, setFormat] = useState(slot.format ?? 'auto')
+  const [enabled, setEnabled] = useState(Boolean(slot.enabled))
+  const [busy, setBusy] = useState(false)
+
+  const dirty =
+    slotId !== (slot.slot_id ?? '') ||
+    format !== (slot.format ?? 'auto') ||
+    enabled !== Boolean(slot.enabled)
+
+  async function save() {
+    setBusy(true)
+    await onSave(slot, { slot_id: slotId.trim(), format, enabled })
+    setBusy(false)
+  }
+
+  return (
+    <div className="skeuo-inset rounded-xl border border-neutral-900 p-4 space-y-3 font-mono">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-wider text-neutral-200">
+            {slot.label || slot.placement}
+          </p>
+          <p className="text-[9px] text-neutral-600">placement: {slot.placement}</p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setEnabled(!enabled)}
+          className={`rounded-lg border px-3 py-1.5 text-[10px] font-black uppercase tracking-wider cursor-pointer ${
+            enabled
+              ? 'bg-[hsl(var(--skeuo-accent))] text-black border-[hsl(var(--skeuo-accent))]'
+              : 'bg-neutral-900 text-neutral-400 border-neutral-800'
+          }`}
+        >
+          {enabled ? 'Enabled' : 'Disabled'}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-[2fr_1fr_auto] gap-2">
+        <input
+          type="text"
+          value={slotId}
+          onChange={(e) => setSlotId(e.target.value)}
+          placeholder="AdSense slot ID, e.g. 1234567890"
+          className="w-full rounded-lg border border-neutral-800 bg-black/60 px-3 py-2 text-xs text-neutral-200 outline-none placeholder:text-neutral-600"
+        />
+
+        <select
+          value={format}
+          onChange={(e) => setFormat(e.target.value)}
+          className="w-full cursor-pointer rounded-lg border border-neutral-800 bg-black/60 px-3 py-2 text-xs text-neutral-200 outline-none"
+        >
+          <option value="auto">auto (responsive)</option>
+          <option value="fluid">fluid (in-article / in-feed)</option>
+          <option value="rectangle">rectangle</option>
+          <option value="horizontal">horizontal</option>
+          <option value="vertical">vertical</option>
+        </select>
+
+        <button
+          type="button"
+          onClick={save}
+          disabled={!dirty || busy}
+          className="rounded-lg bg-[hsl(var(--skeuo-accent))] px-4 py-2 text-[10px] font-black uppercase tracking-wider text-black disabled:opacity-30 cursor-pointer"
+        >
+          {busy ? 'Saving…' : 'Save'}
+        </button>
+      </div>
+
+      {enabled && !slotId.trim() && (
+        <p className="text-[10px] text-amber-400">
+          Enabled but no slot ID — this placement will not render until you paste one.
+        </p>
+      )}
     </div>
   )
 }

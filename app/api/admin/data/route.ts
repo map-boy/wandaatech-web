@@ -36,14 +36,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
-  const db = getAdminClient()
-  if (!db) {
-    return NextResponse.json(
-      { error: 'SUPABASE_SERVICE_ROLE_KEY is not configured on the server' },
-      { status: 500 },
-    )
-  }
-
   let body: any
   try {
     body = await req.json()
@@ -54,8 +46,19 @@ export async function POST(req: Request) {
   const table = String(body?.table ?? '')
   const op = String(body?.op ?? '') as Op
 
+  // Validate the target before touching the database, so a request for a
+  // table outside the allowlist is rejected on its own terms rather than
+  // masked by an unrelated configuration error.
   if (!isWritableTable(table)) {
     return NextResponse.json({ error: `Table "${table}" is not writable` }, { status: 400 })
+  }
+
+  const db = getAdminClient()
+  if (!db) {
+    return NextResponse.json(
+      { error: 'SUPABASE_SERVICE_ROLE_KEY is not configured on the server' },
+      { status: 500 },
+    )
   }
 
   try {
