@@ -1,15 +1,27 @@
 // app/api/admin-upload-truth/route.ts
-// Uses the SERVICE ROLE key → bypasses RLS → can write to ground_truth
+// Replaces a competition's ground-truth rows. Uses the service-role key, so
+// the admin session is checked first.
 
-import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { isAdminRequest } from '@/lib/admin-session'
+import { getAdminClient } from '@/lib/supabase-admin'
 
-const adminSupabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!   // ← service role, not anon
-)
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 export async function POST(req: Request) {
+  if (!(await isAdminRequest())) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  }
+
+  const adminSupabase = getAdminClient()
+  if (!adminSupabase) {
+    return NextResponse.json(
+      { error: 'SUPABASE_SERVICE_ROLE_KEY is not configured on the server' },
+      { status: 500 },
+    )
+  }
+
   try {
     const { competition_id, rows } = await req.json()
 
@@ -17,7 +29,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing competition_id or rows' }, { status: 400 })
     }
 
-    // Delete old truth rows for this competition
     const { error: delErr } = await adminSupabase
       .from('ground_truth')
       .delete()
@@ -27,10 +38,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `Delete failed: ${delErr.message}` }, { status: 500 })
     }
 
-    // Insert fresh rows
-    const { error: insErr } = await adminSupabase
-      .from('ground_truth')
-      .insert(rows)
+    const { error: insErr } = await adminSupabase.from('ground_truth').insert(rows)
 
     if (insErr) {
       return NextResponse.json({ error: `Insert failed: ${insErr.message}` }, { status: 500 })

@@ -1,6 +1,6 @@
 import { MLLab } from '@/components/ml-lab'
 import { Header } from '@/components/header'
-import { Footer } from '@/components/footer'
+import { Footer } from '@/components/site-footer'
 
 export default function ExperimentsPage() {
   return (

@@ -1,7 +1,9 @@
 import { MarqueeBar } from '@/components/marquee-bar'
 import { Header } from '@/components/header'
 import { Project } from '@/components/project'
-import { Footer } from '@/components/footer'
+import { Footer } from '@/components/site-footer'
+import { ProjectsGrid } from '@/components/projects-grid'
+import { AdSlot } from '@/components/ads/ad-slot'
 
 const PROJECT_VIDEOS = [
   {
@@ -103,7 +105,14 @@ export default function ProjectsPage() {
           </div>
         </section>
 
-        {/* ── Project Cards (existing component) ── */}
+        {/* ── Admin-managed portfolio ── */}
+        <ProjectsGrid />
+
+        <div className="container mx-auto max-w-4xl px-6">
+          <AdSlot placement="home-mid" minHeight={120} />
+        </div>
+
+        {/* ── Flagship case study ── */}
         <Project />
       </main>
 
