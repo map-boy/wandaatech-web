@@ -7,16 +7,10 @@ import { restSelect } from './supabase-rest'
 
 // ── Shared helpers ─────────────────────────────────────────────────────────
 
-/** URL-safe identifier derived from a name/title, used when none was set. */
-export function slugify(input: string): string {
-  return (input || '')
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 60)
-}
+// slugify lives in its own module so client components (the admin panel)
+// can use it without pulling these server-side readers into the browser.
+export { slugify } from './slug'
+import { slugify } from './slug'
 
 function parseJsonArray(value: unknown): any[] {
   if (Array.isArray(value)) return value

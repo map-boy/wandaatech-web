@@ -101,7 +101,7 @@ import { supabase } from '@/lib/supabase'
 import { adminApi } from '@/lib/admin-api'
 import { ImageField } from '@/components/admin/image-field'
 import { SITE_CONTENT_DEFAULTS, CONTENT_SECTIONS } from '@/lib/site-defaults'
-import { slugify } from '@/lib/site-data'
+import { slugify } from '@/lib/slug'
 import { Header } from '@/components/header'
 import Link from 'next/link'
 import {
