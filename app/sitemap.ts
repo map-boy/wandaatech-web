@@ -8,7 +8,7 @@ export const revalidate = 3600
 const STATIC_ROUTES: { path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]['changeFrequency'] }[] = [
   { path: '',              priority: 1.0, changeFrequency: 'weekly' },
   { path: '/company',      priority: 0.9, changeFrequency: 'monthly' },
-  { path: '/team',         priority: 0.9, changeFrequency: 'weekly' },
+
   { path: '/projects',     priority: 0.9, changeFrequency: 'weekly' },
   { path: '/insights',     priority: 0.9, changeFrequency: 'weekly' },
   { path: '/competitions', priority: 0.9, changeFrequency: 'daily' },
@@ -36,6 +36,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: route.priority,
   }))
 
+  // Only advertise the team index once there is somebody on it. Submitting an
+  // empty page to the crawler is the kind of thin content that holds up an
+  // AdSense review.
+  const teamIndex =
+    team.length > 0
+      ? [{
+          url: `${base}/team`,
+          lastModified: now,
+          changeFrequency: 'weekly' as const,
+          priority: 0.9,
+        }]
+      : []
+
   const teamEntries = team.map((member) => ({
     url: `${base}/team/${member.slug}`,
     lastModified: now,
@@ -50,5 +63,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }))
 
-  return [...staticEntries, ...teamEntries, ...articleEntries]
+  return [...staticEntries, ...teamIndex, ...teamEntries, ...articleEntries]
 }

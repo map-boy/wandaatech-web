@@ -4,6 +4,7 @@
 // ===========================================================================
 
 import { restSelect } from './supabase-rest'
+import { STATIC_ARTICLES } from './articles-static'
 
 // ── Shared helpers ─────────────────────────────────────────────────────────
 
@@ -196,13 +197,25 @@ function normalizeArticle(row: any): Article {
   }
 }
 
+/**
+ * Published articles: the ones bundled with the repository plus anything
+ * written in the admin panel. A database article with the same slug replaces
+ * its bundled counterpart, so shipped content can later be edited in the
+ * panel without a deploy.
+ */
 export async function getArticles(): Promise<Article[]> {
   const rows = await restSelect<any>(
     'articles',
     'select=*&published=eq.true&order=published_at.desc',
   )
-  if (!rows) return []
-  return rows.map(normalizeArticle)
+
+  const fromDb = (rows ?? []).map(normalizeArticle)
+  const dbSlugs = new Set(fromDb.map((a) => a.slug))
+  const bundled = STATIC_ARTICLES.filter((a) => !dbSlugs.has(a.slug))
+
+  return [...fromDb, ...bundled].sort((a, b) =>
+    (b.published_at ?? '').localeCompare(a.published_at ?? ''),
+  )
 }
 
 export async function getArticleBySlug(slug: string): Promise<Article | null> {
@@ -210,8 +223,9 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
     'articles',
     `select=*&published=eq.true&slug=eq.${encodeURIComponent(slug)}&limit=1`,
   )
-  if (!rows || rows.length === 0) return null
-  return normalizeArticle(rows[0])
+  if (rows && rows.length > 0) return normalizeArticle(rows[0])
+
+  return STATIC_ARTICLES.find((a) => a.slug === slug) ?? null
 }
 
 // ── Ad slots ───────────────────────────────────────────────────────────────
