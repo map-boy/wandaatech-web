@@ -93,18 +93,58 @@ Saving purges the page cache, so edits appear on the next page load.
   layout shift, collapse when unfilled, and never render on policy or admin
   pages.
 
+### After the first rejection (September 2026)
+
+The application came back with "a few tweaks" and the pro tip *focus on your
+content*. That is Google's wording for **not enough unique content**, and it was
+accurate. A crawler fetches HTML; it does not click. Measuring what the server
+actually returned showed how little there was to read:
+
+| Page | Words before | Words now |
+| --- | ---: | ---: |
+| `/projects` | 160 | 486 |
+| `/insights` | 80 | 348 |
+| `/competitions` | 7 | 348 |
+| `/qr-engine` | 49 | 273 |
+| `/lab` | 90 | 364 |
+| `/converter` | 106 | 444 |
+| `/experiments` | 104 | 267 |
+| `/` | 358 | 827 |
+| six article pages | did not exist | 630–957 each |
+
+Three things caused it, and all three are now fixed:
+
+1. **Six finished articles were invisible.** They lived inside
+   `components/project.tsx` as client-side state, so the prose only rendered
+   after a click and had no URL of its own. They now live in
+   `lib/articles-static.ts` and are server-rendered at `/insights/<slug>`.
+   The Easy GO case study on `/projects` was gated the same way and now renders
+   without a click.
+2. **Tool pages had almost no text.** The converter, QR engine, lab,
+   experiments and competitions pages were client components with a heading and
+   nothing else. Each now has a server-rendered explanation of what it does and
+   how to use it.
+3. **Content-free pages were indexable.** `/chat` and `/chat2` were
+   meta-refresh redirect pages; they are now real HTTP redirects and are
+   disallowed in `robots.txt`, along with `/leaderboard`. The team index is
+   left out of the sitemap and marked `noindex` while it has nobody on it.
+
+Navigation was the fourth risk — Google's own guidance names it — so the header
+is no longer hamburger-only: primary links are visible in a sticky bar.
+
 ### What you still have to do
 
-1. **Write content.** This is the one thing that cannot be automated and the
-   most common reason for rejection. AdSense wants substantial, original
-   material. Aim for at least ten real articles in the Articles tab before
-   applying — write-ups of what you built, what broke, and what you learned.
-   The Monetization tab tracks this count.
-2. **Create ad units** in AdSense (Ads → By ad unit). Copy each slot ID.
-3. **Paste the slot IDs** into `/admin` → Monetization and enable the
+1. **Keep writing.** Six articles is a real site; ten or more is a comfortable
+   one. Use the Articles tab — the Monetization tab counts bundled and
+   panel-written articles together.
+2. **Add the team.** `/team` is `noindex` and absent from the sitemap until
+   there is at least one profile, so adding people turns on several real pages.
+3. **Create ad units** in AdSense (Ads → By ad unit). Copy each slot ID.
+4. **Paste the slot IDs** into `/admin` → Monetization and enable the
    placements you want. A placement with no slot ID renders nothing, so the
    site stays clean while the application is pending.
-4. **Submit for review** once the checklist in the Monetization tab is green.
+5. **Request a review** in AdSense → Sites → select the site → Request review.
+   Google says this usually takes a few days and can take 2–4 weeks.
 
 ### Placements available
 

@@ -12,9 +12,10 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
       {
         userAgent: '*',
         allow: '/',
-        // The panel and its API are not content; keeping them out of the index
-        // also keeps them off AdSense's crawl.
-        disallow: ['/admin', '/api/'],
+        // The panel and its API are not content. The chat/leaderboard routes
+        // are bare redirects with no body of their own, and indexing
+        // content-free pages counts against the site when AdSense reviews it.
+        disallow: ['/admin', '/api/', '/chat', '/chat2', '/leaderboard'],
       },
       // Explicitly welcome the AdSense crawler so it can read every page it
       // needs to classify for ad targeting.

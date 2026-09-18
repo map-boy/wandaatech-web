@@ -4,13 +4,17 @@ import { Footer } from '@/components/site-footer'
 import { Team } from '@/components/team'
 import { AdSlot } from '@/components/ads/ad-slot'
 import { getContent } from '@/lib/site-content'
+import { getTeam } from '@/lib/site-data'
 
 export async function generateMetadata(): Promise<Metadata> {
-  const c = await getContent()
+  const [c, team] = await Promise.all([getContent(), getTeam()])
   return {
     title: 'Leadership & Team',
     description: `Meet the people behind ${c.t('brand.name')} — their roles, their background and every project they have shipped.`,
     alternates: { canonical: '/team' },
+    // Until profiles are added this page has nothing on it; an indexed empty
+    // page counts against the site in an AdSense content review.
+    robots: team.length === 0 ? { index: false, follow: true } : undefined,
   }
 }
 

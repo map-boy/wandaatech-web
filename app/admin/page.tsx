@@ -101,6 +101,7 @@ import { supabase } from '@/lib/supabase'
 import { adminApi } from '@/lib/admin-api'
 import { ImageField } from '@/components/admin/image-field'
 import { SITE_CONTENT_DEFAULTS, CONTENT_SECTIONS } from '@/lib/site-defaults'
+import { STATIC_ARTICLES } from '@/lib/articles-static'
 import { slugify } from '@/lib/slug'
 import { Header } from '@/components/header'
 import Link from 'next/link'
@@ -962,6 +963,16 @@ export default function AdminPage() {
   })
   
   const contentSectionsList = Array.from(new Set(siteContent.map(i => i.section)))
+
+  // Six articles ship with the repository and render at /insights without a
+  // database row. A panel article with the same slug replaces its bundled
+  // counterpart, so count slugs rather than adding the two totals.
+  const dbPublished = articles.filter(a => a.published)
+  const dbPublishedCount = dbPublished.length
+  const livePublishedCount = new Set([
+    ...dbPublished.map(a => a.slug),
+    ...STATIC_ARTICLES.map(a => a.slug),
+  ]).size
 
   // ==========================================================================
   // VIEW RENDERER A: SKEUOMORPHIC SCHEMATIC ACCESS INTERFACE (LOGIN)
@@ -2390,9 +2401,31 @@ export default function AdminPage() {
                   ))}
                   {articles.length === 0 && (
                     <p className="text-center text-neutral-600 text-xs py-8">
-                      No articles yet. AdSense reviews sites for original, substantial content — a handful of real write-ups here makes a material difference.
+                      Nothing written here yet. The {STATIC_ARTICLES.length} articles below ship with the site and are already live.
                     </p>
                   )}
+
+                  <div className="pt-4 space-y-2">
+                    <p className="text-[10px] font-mono font-black uppercase tracking-widest text-neutral-500 border-t border-neutral-900 pt-4">
+                      Shipped with the site ({STATIC_ARTICLES.length})
+                    </p>
+                    <p className="text-[10px] text-neutral-600 font-mono">
+                      These live in the codebase and are already published. To change one, create an
+                      article here using the same URL slug — it replaces the bundled version.
+                    </p>
+                    {STATIC_ARTICLES.map((article) => (
+                      <div key={article.slug} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-neutral-900 bg-neutral-950/60 px-4 py-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-bold text-neutral-300">{article.title}</p>
+                          <p className="text-[9px] text-neutral-600">/insights/{article.slug} · {article.readTime}</p>
+                        </div>
+                        <Link href={`/insights/${article.slug}`} target="_blank"
+                          className="shrink-0 px-3 py-1.5 text-[10px] border border-neutral-900 text-neutral-400 rounded-md font-bold uppercase hover:text-white flex items-center gap-1">
+                          <ExternalLink className="w-3 h-3" /> View
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -2418,7 +2451,11 @@ export default function AdminPage() {
                         { label: 'Consent Mode v2 with a real reject option', done: true, note: 'Banner on every page' },
                         { label: 'ads.txt served at the domain root', done: true, note: '/ads.txt' },
                         { label: 'Sitemap and robots.txt allowing AdSense crawlers', done: true, note: '/sitemap.xml' },
-                        { label: 'At least 10 substantial original articles', done: articles.filter(a => a.published).length >= 10, note: `${articles.filter(a => a.published).length} published` },
+                        {
+                          label: 'At least 10 substantial original articles',
+                          done: livePublishedCount >= 10,
+                          note: `${livePublishedCount} live (${STATIC_ARTICLES.length} shipped with the site, ${dbPublishedCount} written here)`,
+                        },
                         { label: 'Team profiles with real names and photos', done: teamMembers.length > 0, note: `${teamMembers.length} member(s)` },
                         { label: 'At least one ad placement enabled with a real slot ID', done: adSlots.some(a => a.enabled && a.slot_id), note: `${adSlots.filter(a => a.enabled && a.slot_id).length} live` },
                       ]
